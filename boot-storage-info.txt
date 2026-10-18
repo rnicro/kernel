@@ -1,0 +1,34 @@
+### Boot mode
+UEFI
+
+### Graphics
+00:02.0 VGA compatible controller [0300]: Intel Corporation Skylake-U GT2 [HD Graphics 520] [8086:1916] (rev 07)
+	Subsystem: Hewlett-Packard Company Device [103c:80d1]
+	Kernel driver in use: i915
+	Kernel modules: i915
+00:04.0 Signal processing controller [1180]: Intel Corporation Xeon E3-1200 v5/E3-1500 v5/6th Gen Core Processor Thermal Subsystem [8086:1903] (rev 08)
+--
+00:13.0 Non-VGA unclassified device [0000]: Intel Corporation Sunrise Point-LP Integrated Sensor Hub [8086:9d35] (rev 21)
+	Subsystem: Hewlett-Packard Company Device [103c:80d1]
+	Kernel driver in use: intel_ish_ipc
+	Kernel modules: intel_ish_ipc
+00:14.0 USB controller [0c03]: Intel Corporation Sunrise Point-LP USB 3.0 xHCI Controller [8086:9d2f] (rev 21)
+
+### Mounted filesystems
+TARGET                        SOURCE     FSTYPE     OPTIONS
+/                             /dev/sda3  ext4       rw,noatime,commit=60
+├─/proc                       proc       proc       rw,nosuid,nodev,noexec,relatime
+├─/sys                        sysfs      sysfs      rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/kernel/security      securityfs securityfs rw,relatime
+│ ├─/sys/firmware/efi/efivars efivarfs   efivarfs   rw,nosuid,nodev,noexec,relatime
+│ └─/sys/fs/cgroup            cgroup2    cgroup2    rw,relatime,nsdelegate
+│   └─/sys/fs/cgroup/elogind  cgroup     cgroup     rw,relatime,name=elogind
+├─/dev                        devtmpfs   devtmpfs   rw,nosuid,noexec,size=1922416k,nr_inodes=480604,mode=755,inode64
+│ ├─/dev/pts                  devpts     devpts     rw,nosuid,noexec,relatime,gid=5,mode=600,ptmxmode=000
+│ └─/dev/shm                  tmpfs      tmpfs      rw,nosuid,nodev,noexec,inode64
+├─/run                        tmpfs      tmpfs      rw,nosuid,nodev,noexec,mode=755,inode64
+│ ├─/run/systemd              none       tmpfs      rw,nosuid,nodev,noexec,relatime,mode=755,inode64
+│ └─/run/user                 none       tmpfs      rw,nosuid,nodev,noexec,relatime,mode=755,inode64
+│   └─/run/user/1000          tmpfs      tmpfs      rw,nosuid,nodev,relatime,size=392988k,nr_inodes=98247,mode=700,uid=1000,gid=1000,inode64
+├─/boot/efi                   /dev/sda1  vfat       rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,utf8,errors=remount-ro
+└─/tmp                        tmpfs      tmpfs      rw,nosuid,nodev,relatime,inode64
