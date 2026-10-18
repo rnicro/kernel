@@ -8,14 +8,6 @@ on:
       - "scripts/**"
       - "README.md"
   workflow_dispatch:
-    inputs:
-      package:
-        description: "Void kernel series to build"
-        required: true
-        default: "linux7.2"
-        type: choice
-        options:
-          - linux7.2
 
 permissions:
   contents: read
@@ -34,7 +26,7 @@ jobs:
 
       - name: Build x86_64-musl kernel package inside Void Linux
         env:
-          KERNEL_PACKAGE: ${{ inputs.package || 'linux7.2' }}
+          KERNEL_PACKAGE: ""
           BUILD_JOBS: 4
         run: |
           set -euo pipefail
