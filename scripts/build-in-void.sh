@@ -1,6 +1,10 @@
 #!/bin/sh
 set -eu
 
+# The Void container image defaults to the destructive ethereal chroot method.
+# Use unprivileged user namespaces so xbps-src can keep its masterdir isolated.
+export XBPS_CHROOT_CMD=uunshare
+
 : "${KERNEL_PACKAGE:=}"
 : "${BUILD_JOBS:=4}"
 : "${VOID_REPO:=https://repo-de.voidlinux.org}"
@@ -136,8 +140,9 @@ if old not in text:
 path.write_text(text.replace(old, new, 1))
 PY
 
-# xbps-src must run unprivileged. Bootstrap and package compilation use the
-# same builder identity; ethereal mode is selected only after bootstrap.
+# xbps-src must run unprivileged. Keep bootstrap and package compilation on
+# the same isolated user-namespace chroot instead of ethereal, which requires
+# the masterdir to be a symlink to / and is inappropriate for a custom masterdir.
 if ! id builder >/dev/null 2>&1; then
     useradd -m -U -s /bin/sh builder
 fi
@@ -148,9 +153,11 @@ chown builder:builder /workspace/artifacts
 su -s /bin/sh builder -c "
     set -eu
     cd /workspace/void-packages
-    # Ethereal mode defaults to the generic masterdir; pin both phases to the
-    # same target-specific masterdir so bootstrap and pkg cannot diverge.
-    ./xbps-src -A x86_64-musl -m masterdir-x86_64-musl binary-bootstrap
+    # Force the safe chroot style inside the container. -A selects the musl
+    # host architecture and its corresponding masterdir-x86_64-musl directory.
+    export XBPS_CHROOT_CMD=uunshare
+    unset XBPS_ALLOW_CHROOT_BREAKOUT || true
+    ./xbps-src -A x86_64-musl binary-bootstrap
     if [ ! -x masterdir-x86_64-musl/usr/bin/bash ]; then
         echo binary-bootstrap_completed_but_target_masterdir_is_not_populated >&2
         echo Expected_masterdir-x86_64-musl_usr_bin_bash >&2
@@ -162,9 +169,7 @@ su -s /bin/sh builder -c "
         xbps-query -r masterdir-x86_64-musl -l 2>&1 | grep -E '^(base-chroot|base-files|bash|xbps)-' >&2 || true
         exit 1
     fi
-    export XBPS_CHROOT_CMD=ethereal
-    export XBPS_ALLOW_CHROOT_BREAKOUT=yes
-    ./xbps-src -A x86_64-musl -m masterdir-x86_64-musl -j'$BUILD_JOBS' pkg '$KERNEL_PACKAGE'
+    ./xbps-src -A x86_64-musl -j'$BUILD_JOBS' pkg '$KERNEL_PACKAGE'
 "
 
 # Publish only the requested installable package family, excluding debug builds.
