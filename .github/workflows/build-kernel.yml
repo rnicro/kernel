@@ -59,6 +59,9 @@ jobs:
           image="ghcr.io/void-linux/void-musl:20260901r1@sha256:5b01ccb49a601ba4a525d82841578055f8c5a48adabdfa1ad37c087ac0b01ce0"
           docker pull "$image"
           docker run --rm --cpus="$(nproc)" \
+            --security-opt seccomp=unconfined \
+            --security-opt apparmor=unconfined \
+            --cap-add SYS_ADMIN \
             -e KERNEL_PACKAGE="$KERNEL_PACKAGE" \
             -e BUILD_JOBS="$BUILD_JOBS" \
             -v "$GITHUB_WORKSPACE:/workspace" \
