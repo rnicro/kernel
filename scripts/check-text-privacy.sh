@@ -18,7 +18,7 @@ patterns = {
     "SSID field": re.compile(r"\bSSID\s*[:=]", re.I),
 }
 serial = re.compile(r"^\s*(?:System )?Serial Number:\s*(.*?)\s*$", re.I)
-safe_serial_values = {"", "[REDACTED]", "to be filled by o.e.m.", "not specified", "none", "n/a"}
+safe_serial_values = {"", "[redacted]", "to be filled by o.e.m.", "not specified", "none", "n/a"}
 failures = []
 for path in paths:
     try:
