@@ -5,8 +5,7 @@ set -eu
 : "${BUILD_JOBS:=4}"
 : "${VOID_REPO:=https://repo-de.voidlinux.org}"
 
-# Avoid the broken default mirror endpoint seen in CI while keeping HTTPS and
-# XBPS signature verification enabled. Retry transient repository failures.
+# Avoid the failing default mirror while preserving HTTPS and XBPS signatures.
 mkdir -p /etc/xbps.d
 found_repo_config=false
 for config in /usr/share/xbps.d/*-repository-*.conf; do
@@ -38,14 +37,24 @@ retry xbps-install -y git base-devel xtools python3 util-linux shadow
 git clone --depth=1 https://github.com/void-linux/void-packages.git
 cd void-packages
 
-# Reuse verified runner caches for downloaded source archives and XBPS packages.
-# Keep build outputs/chroots out of Actions cache; they are large and host-specific.
-mkdir -p /workspace/cache/sources /workspace/cache/repocache-x86_64-musl hostdir
-rm -rf hostdir/sources hostdir/repocache-x86_64-musl
-ln -s /workspace/cache/sources hostdir/sources
-ln -s /workspace/cache/repocache-x86_64-musl hostdir/repocache-x86_64-musl
+# xbps-src expects real directories under hostdir and manages them as chroot
+# mount points. Symlinking these paths to Actions cache caused /host/sources
+# to exist before xbps-src mounted it, breaking binary-bootstrap reconfiguration.
+# Stage cache contents into real directories and sync them back even on failure.
+cache_sources=/workspace/cache/sources
+cache_repo=/workspace/cache/repocache-x86_64-musl
+mkdir -p "$cache_sources" "$cache_repo" hostdir/sources hostdir/repocache-x86_64-musl
+cp -a "$cache_sources/." hostdir/sources/
+cp -a "$cache_repo/." hostdir/repocache-x86_64-musl/
 
-# Select the newest kernel series present in Void's packaging repository.
+sync_caches() {
+    set +e
+    [ ! -d hostdir/sources ] || cp -a hostdir/sources/. "$cache_sources/"
+    [ ! -d hostdir/repocache-x86_64-musl ] || cp -a hostdir/repocache-x86_64-musl/. "$cache_repo/"
+}
+trap sync_caches EXIT HUP INT TERM
+
+# Select the newest stable kernel series available as a Void package template.
 if [ -z "$KERNEL_PACKAGE" ]; then
     KERNEL_PACKAGE="$(python3 - <<'PY'
 import pathlib
@@ -66,11 +75,11 @@ fi
 pkg="$KERNEL_PACKAGE"
 template="srcpkgs/$pkg/template"
 config="srcpkgs/$pkg/files/x86_64-dotconfig"
-test -f "$template"
-test -f "$config"
+test -f "$template" || { echo "Missing kernel template: $template" >&2; exit 1; }
+test -f "$config" || { echo "Missing x86_64 kernel config: $config" >&2; exit 1; }
 echo "Selected Void kernel package: $KERNEL_PACKAGE"
 
-# Skylake tuning without raising the x86-64 ISA baseline.
+# Tune instruction scheduling for Skylake without raising the x86-64 ISA baseline.
 python3 - "$template" <<'PY'
 import pathlib
 import sys
@@ -86,13 +95,12 @@ if old not in text:
 path.write_text(text.replace(old, new, 1))
 PY
 
-# xbps-src explicitly refuses to run as root. Create a disposable unprivileged
-# builder, grant it only the workspace paths required for compilation, and run
-# both bootstrap and package compilation as that user.
+# xbps-src must run unprivileged. Bootstrap and package compilation use the
+# same builder identity; ethereal mode is selected only after bootstrap.
 if ! id builder >/dev/null 2>&1; then
     useradd -m -U -s /bin/sh builder
 fi
-chown -R builder:builder /workspace/void-packages /workspace/cache/sources /workspace/cache/repocache-x86_64-musl
+chown -R builder:builder /workspace/void-packages
 mkdir -p /workspace/artifacts
 chown builder:builder /workspace/artifacts
 
@@ -105,7 +113,10 @@ su -s /bin/sh builder -c "
     ./xbps-src -j'$BUILD_JOBS' pkg '$KERNEL_PACKAGE'
 "
 
-# Publish installable packages only; omit debug packages and build metadata.
+# Publish only the requested installable package family, excluding debug builds.
 find hostdir/binpkgs -type f -name "$KERNEL_PACKAGE-*.xbps" ! -name "*-dbg-*.xbps" -print0 \
     | xargs -0 -r cp -v -t /workspace/artifacts
-test -n "$(find /workspace/artifacts -maxdepth 1 -type f -name '*.xbps' -print -quit)"
+if ! find /workspace/artifacts -maxdepth 1 -type f -name '*.xbps' -print -quit | grep -q .; then
+    echo "Build finished without producing installable .xbps packages" >&2
+    exit 1
+fi
