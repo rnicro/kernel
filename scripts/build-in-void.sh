@@ -107,10 +107,14 @@ chown builder:builder /workspace/artifacts
 su -s /bin/sh builder -c "
     set -eu
     cd /workspace/void-packages
-    ./xbps-src binary-bootstrap
+    ./xbps-src -A x86_64-musl binary-bootstrap
+    test -x masterdir/usr/bin/xbps-query || {
+        echo "binary-bootstrap returned without installing xbps-query in masterdir" >&2
+        exit 1
+    }
     export XBPS_CHROOT_CMD=ethereal
     export XBPS_ALLOW_CHROOT_BREAKOUT=yes
-    ./xbps-src -j'$BUILD_JOBS' pkg '$KERNEL_PACKAGE'
+    ./xbps-src -A x86_64-musl -j'$BUILD_JOBS' pkg '$KERNEL_PACKAGE'
 "
 
 # Publish only the requested installable package family, excluding debug builds.
