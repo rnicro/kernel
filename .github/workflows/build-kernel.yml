@@ -24,13 +24,38 @@ jobs:
       - name: Check out this repository
         uses: actions/checkout@v7
 
+      - name: Allow unprivileged build namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Prepare cache epoch
+        id: cache-epoch
+        run: echo "week=$(date -u +'%G-W%V')" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Void binary package cache
+        id: xbps-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: cache/repocache-x86_64-musl
+          key: void-kernel-repocache-v1-x86_64-musl-${{ steps.cache-epoch.outputs.week }}
+          restore-keys: |
+            void-kernel-repocache-v1-x86_64-musl-
+
+      - name: Restore kernel source cache
+        id: source-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: cache/sources
+          key: void-kernel-sources-v1-${{ steps.cache-epoch.outputs.week }}
+          restore-keys: |
+            void-kernel-sources-v1-
+
       - name: Build x86_64-musl kernel package inside Void Linux
         env:
           KERNEL_PACKAGE: ""
           BUILD_JOBS: 4
         run: |
           set -euo pipefail
-          mkdir -p artifacts
+          mkdir -p artifacts cache/repocache-x86_64-musl cache/sources
           image="ghcr.io/void-linux/void-musl:20260901r1@sha256:5b01ccb49a601ba4a525d82841578055f8c5a48adabdfa1ad37c087ac0b01ce0"
           docker pull "$image"
           docker run --rm --cpus="$(nproc)" \
@@ -39,6 +64,22 @@ jobs:
             -v "$GITHUB_WORKSPACE:/workspace" \
             -w /workspace \
             "$image" sh /workspace/scripts/build-in-void.sh
+
+      - name: Save Void binary package cache
+        if: ${{ always() && !cancelled() && steps.xbps-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: cache/repocache-x86_64-musl
+          key: void-kernel-repocache-v1-x86_64-musl-${{ steps.cache-epoch.outputs.week }}
+
+      - name: Save kernel source cache
+        if: ${{ always() && !cancelled() && steps.source-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        continue-on-error: true
+        with:
+          path: cache/sources
+          key: void-kernel-sources-v1-${{ steps.cache-epoch.outputs.week }}
 
       - name: Upload installable kernel packages
         uses: actions/upload-artifact@v7
