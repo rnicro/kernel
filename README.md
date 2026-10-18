@@ -20,7 +20,7 @@ Builds the newest stable Linux kernel series available as a maintained template 
 - Adds GCC's `-mtune=skylake` scheduling hint without raising the x86-64 instruction-set baseline. It deliberately avoids `-march=native`, which would tune for the GitHub runner and could emit unsupported instructions.
 - Preserves Void's broad driver configuration for graphics, wireless, storage, audio, card reader, input, power management, and external modules. Hardware-driver pruning and speculative Kconfig changes are avoided unless measurements and device tests justify them.
 - Builds inside the official Void musl container and publishes x86_64-musl packages. GitHub Actions grants the container the namespace support required by `xbps-src` chroots.
-- Caches Void binary repository downloads and upstream source archives in GitHub Actions. Cache keys rotate weekly, with restore prefixes to reuse prior weeks; only downloaded inputs are cached, not host-specific chroots or kernel build trees.
+- Caches Void binary repository downloads and upstream source archives in GitHub Actions. Cache keys rotate weekly and reuse prior-week downloads; caches are saved only after a successful build to avoid filling the repository cache quota with repeated failed-run snapshots. Only downloaded inputs are cached, not host-specific chroots or kernel build trees.
 - Uses HTTPS and XBPS package-signature verification. The build overrides the failing default mirror endpoint with `repo-de.voidlinux.org` and retries transient repository failures.
 - The artifact contains installable kernel and headers `.xbps` packages only; debug packages and build metadata are excluded.
 
@@ -30,7 +30,7 @@ Builds the newest stable Linux kernel series available as a maintained template 
 2. Run the workflow on `main`; it detects the newest kernel series available in Void Packages automatically.
 3. Download the `void-kernel-x86_64-musl-skylake` artifact after a successful run.
 
-Pushes to `main` that modify the workflow, build scripts, or README trigger a build. All routine changes go directly to `main`; do not create feature branches.
+Pushes to `main` that modify the workflow or build scripts trigger a build; documentation-only edits do not consume build minutes. Use **workflow_dispatch** to rebuild against the newest kernel template currently available in Void Packages. All routine changes go directly to `main`; do not create feature branches.
 
 ## Validation and safety
 

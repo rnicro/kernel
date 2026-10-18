@@ -108,14 +108,17 @@ su -s /bin/sh builder -c "
     set -eu
     cd /workspace/void-packages
     ./xbps-src -A x86_64-musl binary-bootstrap
-    if [ ! -f masterdir/bin/bash ]; then
-        echo binary-bootstrap_returned_without_required_masterdir_bin_bash >&2
-        echo masterdir_bin_contents: >&2
-        ls -la masterdir/bin >&2 || true
-        echo masterdir_usr_bin_bash: >&2
-        ls -l masterdir/usr/bin/bash >&2 || true
-        echo masterdir_base_packages: >&2
-        xbps-query -r masterdir -l 'base-files|bash|xbps' >&2 || true
+    # -A selects a target-specific masterdir on current xbps-src versions.
+    # Checking the legacy "masterdir" path falsely fails after a good bootstrap.
+    if [ ! -x masterdir-x86_64-musl/usr/bin/bash ]; then
+        echo "binary-bootstrap completed but target masterdir is not populated" >&2
+        echo "Expected: masterdir-x86_64-musl/usr/bin/bash" >&2
+        echo "Target masterdir marker:" >&2
+        cat masterdir-x86_64-musl/.xbps_chroot_init >&2 || true
+        echo "Available masterdir directories:" >&2
+        ls -ld masterdir* >&2 || true
+        echo "Installed bootstrap packages:" >&2
+        xbps-query -r masterdir-x86_64-musl -l 2>&1 | grep -E '^(base-chroot|base-files|bash|xbps)-' >&2 || true
         exit 1
     fi
     export XBPS_CHROOT_CMD=ethereal
