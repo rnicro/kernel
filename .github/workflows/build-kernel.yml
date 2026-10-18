@@ -75,7 +75,7 @@ jobs:
         continue-on-error: true
         with:
           path: cache/repocache-x86_64-musl
-          key: void-kernel-repocache-v1-x86_64-musl-${{ steps.cache-epoch.outputs.week }}
+          key: void-kernel-repocache-v2-x86_64-musl-${{ steps.cache-epoch.outputs.week }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Save kernel source cache
         if: ${{ always() && !cancelled() }}
@@ -83,7 +83,7 @@ jobs:
         continue-on-error: true
         with:
           path: cache/sources
-          key: void-kernel-sources-v1-${{ steps.cache-epoch.outputs.week }}
+          key: void-kernel-sources-v2-${{ steps.cache-epoch.outputs.week }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Upload installable kernel packages
         uses: actions/upload-artifact@v7
