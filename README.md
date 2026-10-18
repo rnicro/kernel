@@ -17,8 +17,9 @@ Builds the newest stable Linux kernel series available as a maintained template 
 
 - Automatically selects the highest versioned `linuxX.Y` kernel template available in the current Void Packages checkout. This follows new stable series when Void adds their package template; it does not build release candidates merely because they exist upstream.
 - Uses Void's maintained kernel template and x86_64 configuration rather than a hand-rolled kernel package.
-- Adds GCC's `-mtune=skylake` scheduling hint without raising the x86-64 instruction-set baseline. It deliberately avoids `-march=native`, which would tune for the GitHub runner and could emit unsupported instructions.
-- Preserves Void's broad driver configuration for graphics, wireless, storage, audio, card reader, input, power management, and external modules. Hardware-driver pruning and speculative Kconfig changes are avoided unless measurements and device tests justify them.
+- Compiles kernel C code with GCC `-march=skylake -mtune=skylake`, targeting the Intel Core i3-6100U rather than the GitHub runner. **This is CPU-specific:** do not install this package on older x86 CPUs or redistribute it as a generic x86-64 kernel.
+- Creates a target-specific `x86_64-dotconfig-custom` overlay from Void's maintained config. It changes the periodic tick from 1000 Hz to 300 Hz to balance interactive responsiveness with laptop interrupt/idle overhead; Kconfig's `oldconfig` resolves symbols unsupported by the selected kernel series.
+- Retains Void's broad driver configuration for graphics, wireless, storage, audio, card reader, input, power management, and external modules. It does not disable device drivers or enable experimental features merely to reduce the configuration size.
 - Builds inside the official Void musl container and publishes x86_64-musl packages. GitHub Actions grants the container the namespace support required by `xbps-src` chroots.
 - Caches Void binary repository downloads and upstream source archives in GitHub Actions. Cache keys rotate weekly and reuse prior-week downloads; caches are saved only after a successful build to avoid filling the repository cache quota with repeated failed-run snapshots. Only downloaded inputs are cached, not host-specific chroots or kernel build trees.
 - Uses HTTPS and XBPS package-signature verification. The build overrides the failing default mirror endpoint with `repo-de.voidlinux.org` and retries transient repository failures.
@@ -36,5 +37,6 @@ Pushes to `main` that modify the workflow or build scripts trigger a build; docu
 
 - GitHub Actions performs compilation; the target laptop is not used as a build machine. The workflow caches reusable downloads to reduce repeat build setup time.
 - The build uses Void's `xbps-src` packaging template. It bootstraps and compiles as a dedicated unprivileged `builder` account (required by `xbps-src`), enabling the hosted-runner-compatible ethereal chroot only after bootstrap.
-- A successful package build does not prove that the kernel boots or improves real-world performance. Test installation, boot, suspend/resume, Wi-Fi, graphics, audio, touch input, card reader, and power behavior before relying on it.
+- The Skylake-specific compiler target can emit instructions unavailable on older CPUs; only use the package on the intended i3-6100U/Skylake laptop. A successful build does not prove bootability or improved performance, battery life, or thermals. Test boot, suspend/resume, Wi-Fi, graphics, audio, touch input, card reader, idle power, and sustained load.
+- A 300 Hz tick may trade some peak latency behavior for lower periodic-tick overhead compared with 1000 Hz; benchmark the actual workload and revert the overlay if responsiveness regresses.
 - Keep a known-working kernel installed for rollback. This is a personal custom package, not an official Void Linux build.
