@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 360
     steps:
       - name: Check out this repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Build x86_64-musl kernel package inside Void Linux
         env:
@@ -49,7 +49,7 @@ jobs:
             "$image" sh /workspace/scripts/build-in-void.sh
 
       - name: Upload installable kernel packages
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: void-kernel-x86_64-musl-skylake
           path: artifacts/*.xbps
