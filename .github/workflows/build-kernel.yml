@@ -24,6 +24,9 @@ jobs:
       - name: Check out this repository
         uses: actions/checkout@v7
 
+      - name: Check text dumps for confidential identifiers
+        run: sh scripts/check-text-privacy.sh
+
       - name: Allow unprivileged build namespaces
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
