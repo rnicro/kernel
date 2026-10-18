@@ -72,10 +72,10 @@ if text.count(old) != 1:
 path.write_text(text.replace(old, new, 1))
 PY
 
-su -m -s /bin/sh xbuilder -c 'cd /workspace/void-packages && ./xbps-src binary-bootstrap'
-su -m -s /bin/sh xbuilder -c 'cd /workspace/void-packages && ./xbps-src -j"$BUILD_JOBS" pkg "$KERNEL_PACKAGE"'
+su -s /bin/sh xbuilder -c 'cd /workspace/void-packages && ./xbps-src binary-bootstrap'
+su -s /bin/sh xbuilder -c "cd /workspace/void-packages && ./xbps-src -j$BUILD_JOBS pkg $KERNEL_PACKAGE"
 
 # Keep the installable kernel and headers packages; omit debug packages and
 # build metadata from the published artifact.
-su -m -s /bin/sh xbuilder -c 'cd /workspace/void-packages && find hostdir/binpkgs -type f -name "$KERNEL_PACKAGE-*.xbps" ! -name "*-dbg-*.xbps" -exec cp -v {} /workspace/artifacts/ \\;'
+su -s /bin/sh xbuilder -c "cd /workspace/void-packages && find hostdir/binpkgs -type f -name '$KERNEL_PACKAGE-*.xbps' ! -name '*-dbg-*.xbps' -print0 | xargs -0 -r cp -v -t /workspace/artifacts"
 test -n "$(find /workspace/artifacts -maxdepth 1 -type f -name '*.xbps' -print -quit)"
