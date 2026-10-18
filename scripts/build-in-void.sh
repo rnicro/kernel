@@ -33,7 +33,7 @@ retry() {
 }
 
 retry xbps-install -Syu xbps
-retry xbps-install -y git base-devel xtools python3 util-linux shadow sudo
+retry xbps-install -y git base-devel xtools python3 util-linux
 
 git clone --depth=1 https://github.com/void-linux/void-packages.git
 cd void-packages
@@ -43,20 +43,6 @@ template="srcpkgs/$pkg/template"
 config="srcpkgs/$pkg/files/x86_64-dotconfig"
 test -f "$template"
 test -f "$config"
-
-# xbps-src refuses to run as root. Give it a dedicated unprivileged builder
-# with passwordless sudo only inside this disposable CI container.
-if ! grep -q '^xbuilder:' /etc/group; then
-    groupadd xbuilder
-fi
-if ! id xbuilder >/dev/null 2>&1; then
-    useradd -m -g xbuilder -s /bin/sh xbuilder
-fi
-mkdir -p /etc/sudoers.d
-printf 'xbuilder ALL=(ALL:ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/xbuilder
-chmod 0440 /etc/sudoers.d/xbuilder
-chmod 0777 /workspace/artifacts
-chown -R xbuilder:xbuilder /workspace/void-packages
 
 # Apply only a safe scheduling hint for the target Skylake CPU. Do not use
 # -march=native or enable instructions that the target CPU may not support.
@@ -76,10 +62,15 @@ if text.count(old) != 1:
 path.write_text(text.replace(old, new, 1))
 PY
 
-su -s /bin/sh xbuilder -c 'cd /workspace/void-packages && ./xbps-src binary-bootstrap'
-su -s /bin/sh xbuilder -c "cd /workspace/void-packages && ./xbps-src -j$BUILD_JOBS pkg $KERNEL_PACKAGE"
+# This is a disposable CI container. Use xbps-src's supported ethereal
+# chroot mode to avoid user-namespace restrictions imposed by hosted runners.
+export XBPS_CHROOT_CMD=ethereal
+export XBPS_ALLOW_CHROOT_BREAKOUT=yes
+./xbps-src binary-bootstrap
+./xbps-src -j"$BUILD_JOBS" pkg "$KERNEL_PACKAGE"
 
 # Keep the installable kernel and headers packages; omit debug packages and
 # build metadata from the published artifact.
-su -s /bin/sh xbuilder -c "cd /workspace/void-packages && find hostdir/binpkgs -type f -name '$KERNEL_PACKAGE-*.xbps' ! -name '*-dbg-*.xbps' -print0 | xargs -0 -r cp -v -t /workspace/artifacts"
+find hostdir/binpkgs -type f -name "$KERNEL_PACKAGE-*.xbps" ! -name "*-dbg-*.xbps" -print0 \
+    | xargs -0 -r cp -v -t /workspace/artifacts
 test -n "$(find /workspace/artifacts -maxdepth 1 -type f -name '*.xbps' -print -quit)"
