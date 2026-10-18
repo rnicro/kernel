@@ -27,13 +27,13 @@ import sys
 pkg = sys.argv[1]
 path = pathlib.Path("srcpkgs") / pkg / "template"
 text = path.read_text()
-anchor = "\\t# Always use our revision to CONFIG_LOCALVERSION to match our pkg version.\\n"
+anchor = "\t# Always use our revision to CONFIG_LOCALVERSION to match our pkg version.\n"
 addition = (
-    "\\t# Merge the device-specific CPU tuning fragment.\\n"
-    "\\tif [ -f \"\\u0024{FILESDIR}/x86_64-dotconfig-fragment\" ]; then\\n"
-    "\\t\\tscripts/kconfig/merge_config.sh -m .config \"\\u0024{FILESDIR}/x86_64-dotconfig-fragment\"\\n"
-    "\\t\\tmake \\u0024{makejobs} ARCH=\\u0024arch \\u0024{_cross} olddefconfig\\n"
-    "\\tfi\\n\\n"
+    "\t# Merge the device-specific CPU tuning fragment.\n"
+    "\tif [ -f \"${FILESDIR}/x86_64-dotconfig-fragment\" ]; then\n"
+    "\t\tscripts/kconfig/merge_config.sh -m .config \"${FILESDIR}/x86_64-dotconfig-fragment\"\n"
+    "\t\tmake ${makejobs} ARCH=$arch ${_cross} olddefconfig\n"
+    "\tfi\n\n"
 )
 if text.count(anchor) != 1:
     raise SystemExit("Kernel template changed: could not safely locate config insertion point")
@@ -45,7 +45,7 @@ PY
 
 mkdir -p /workspace/artifacts
 find hostdir/binpkgs -type f -name "$pkg-*.xbps" ! -name "*-dbg-*.xbps" \
-  -exec cp -v {} /workspace/artifacts/ \\;
+  -exec cp -v {} /workspace/artifacts/ \;
 test -n "$(find /workspace/artifacts -maxdepth 1 -type f -name '*.xbps' -print -quit)"
 cp "srcpkgs/$pkg/template" /workspace/artifacts/kernel-template-used.txt
-printf 'Package: %s\\nConfig fragment: Skylake\\n' "$pkg" > /workspace/artifacts/build-info.txt
+printf 'Package: %s\nConfig fragment: Skylake\n' "$pkg" > /workspace/artifacts/build-info.txt
