@@ -1,0 +1,99 @@
+name: Build optimized Void Linux kernel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-kernel.yml"
+      - "config/**"
+      - "scripts/**"
+      - "README.md"
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Void kernel package template"
+        required: true
+        default: "linux6.18"
+        type: choice
+        options:
+          - linux6.18
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kernel-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Build kernel package inside Void Linux
+        env:
+          KERNEL_PACKAGE: ${{ inputs.package || 'linux6.18' }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          docker pull voidlinux/voidlinux:latest
+          docker run --rm --privileged \
+            -e KERNEL_PACKAGE="$KERNEL_PACKAGE" \
+            -e BUILD_JOBS=4 \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            voidlinux/voidlinux:latest sh -euxc '
+              xbps-install -Syu xbps
+              xbps-install -y git base-devel xtools python3
+              git clone --depth=1 https://github.com/void-linux/void-packages.git
+              cd void-packages
+
+              pkg="$KERNEL_PACKAGE"
+              test -f "srcpkgs/$pkg/template"
+              test -f "srcpkgs/$pkg/files/x86_64-dotconfig"
+
+              cp "srcpkgs/$pkg/files/x86_64-dotconfig" \
+                 "srcpkgs/$pkg/files/x86_64-dotconfig-custom"
+              install -m 0644 /workspace/config/x86_64-dotconfig-fragment \
+                 "srcpkgs/$pkg/files/x86_64-dotconfig-fragment"
+
+              python3 - "$pkg" <<'PY'
+          import pathlib, sys
+          pkg = sys.argv[1]
+          path = pathlib.Path("srcpkgs") / pkg / "template"
+          text = path.read_text()
+          anchor = "\t# Always use our revision to CONFIG_LOCALVERSION to match our pkg version.\n"
+          addition = (
+              "\t# Merge the device-specific CPU tuning fragment.\n"
+              "\tif [ -f \"\u0024{FILESDIR}/x86_64-dotconfig-fragment\" ]; then\n"
+              "\t\tscripts/kconfig/merge_config.sh -m .config \"\u0024{FILESDIR}/x86_64-dotconfig-fragment\"\n"
+              "\t\tmake \u0024{makejobs} ARCH=\u0024arch \u0024{_cross} olddefconfig\n"
+              "\tfi\n\n"
+          )
+          if text.count(anchor) != 1:
+              raise SystemExit("Kernel template changed: could not safely locate config insertion point")
+          path.write_text(text.replace(anchor, addition + anchor, 1))
+          PY
+
+              ./xbps-src binary-bootstrap
+              ./xbps-src -j"$BUILD_JOBS" pkg "$pkg"
+
+              mkdir -p /workspace/artifacts
+              find hostdir/binpkgs -type f -name "$pkg-*.xbps" ! -name "*-dbg-*.xbps" \
+                -exec cp -v {} /workspace/artifacts/ \;
+              test -n "$(find /workspace/artifacts -maxdepth 1 -type f -name "*.xbps" -print -quit)"
+              cp "srcpkgs/$pkg/template" /workspace/artifacts/kernel-template-used.txt
+              printf "Package: %s\nConfig fragment: Skylake\n" "$pkg" \
+                > /workspace/artifacts/build-info.txt
+            '
+
+      - name: Upload kernel packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: void-kernel-x86_64-skylake
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 14
