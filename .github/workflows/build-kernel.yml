@@ -13,8 +13,8 @@ permissions:
 
 concurrency:
   group: kernel-build-${{ github.ref }}
-  # Kernel builds are expensive; let the active run finish while keeping one pending run.
-  cancel-in-progress: false
+  # Only build the newest source revision; cancel stale queued/running builds.
+  cancel-in-progress: true
 
 jobs:
   build:
