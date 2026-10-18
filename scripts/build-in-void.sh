@@ -108,10 +108,16 @@ su -s /bin/sh builder -c "
     set -eu
     cd /workspace/void-packages
     ./xbps-src -A x86_64-musl binary-bootstrap
-    test -x masterdir/usr/bin/xbps-query || {
-        echo binary-bootstrap_returned_without_installing_xbps-query_in_masterdir >&2
+    if [ ! -f masterdir/bin/bash ]; then
+        echo "binary-bootstrap returned without the required masterdir/bin/bash" >&2
+        echo "masterdir/bin:" >&2
+        ls -la masterdir/bin >&2 || true
+        echo "masterdir/usr/bin/bash:" >&2
+        ls -l masterdir/usr/bin/bash >&2 || true
+        echo "masterdir base packages:" >&2
+        xbps-query -r masterdir -l 'base-files|bash|xbps' >&2 || true
         exit 1
-    }
+    fi
     export XBPS_CHROOT_CMD=ethereal
     export XBPS_ALLOW_CHROOT_BREAKOUT=yes
     ./xbps-src -A x86_64-musl -j'$BUILD_JOBS' pkg '$KERNEL_PACKAGE'
