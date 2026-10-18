@@ -13,7 +13,7 @@ Builds a Void Linux kernel package on GitHub Actions for this device profile.
 - **Card reader:** Realtek RTS522A (rtsx_pci)
 - **Platform:** HP Pavilion x360, UEFI
 
-The build starts from Void's maintained x86_64 kernel configuration to preserve broad hardware support, then merges a small fragment selecting the Skylake CPU target. It does **not** aggressively disable drivers: reducing kernel size does not guarantee improved runtime performance.
+The build starts from Void's maintained x86_64 kernel configuration to preserve broad hardware support, then adds GCC's safe -mtune=skylake scheduling hint. This does not raise the required CPU instruction-set baseline or optimize for the GitHub runner. It does **not** aggressively disable drivers: reducing kernel size does not guarantee improved runtime performance.
 
 ## Build
 
