@@ -16,7 +16,7 @@ x86_64
 7.2.11_1
 
 ### Kernel command line
-BOOT_IMAGE=/boot/vmlinuz-7.2.11_1 root=UUID=a93a698c-4e66-4538-8ab5-88a5e2c858bf ro loglevel=3
+BOOT_IMAGE=/boot/vmlinuz-7.2.11_1 root=UUID=[REDACTED] ro loglevel=3
 
 ### CPU details
 Architecture:                            x86_64
