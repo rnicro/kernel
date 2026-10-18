@@ -109,12 +109,12 @@ su -s /bin/sh builder -c "
     cd /workspace/void-packages
     ./xbps-src -A x86_64-musl binary-bootstrap
     if [ ! -f masterdir/bin/bash ]; then
-        echo "binary-bootstrap returned without the required masterdir/bin/bash" >&2
-        echo "masterdir/bin:" >&2
+        echo binary-bootstrap_returned_without_required_masterdir_bin_bash >&2
+        echo masterdir_bin_contents: >&2
         ls -la masterdir/bin >&2 || true
-        echo "masterdir/usr/bin/bash:" >&2
+        echo masterdir_usr_bin_bash: >&2
         ls -l masterdir/usr/bin/bash >&2 || true
-        echo "masterdir base packages:" >&2
+        echo masterdir_base_packages: >&2
         xbps-query -r masterdir -l 'base-files|bash|xbps' >&2 || true
         exit 1
     fi
