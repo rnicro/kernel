@@ -27,7 +27,7 @@ Pushes to main that modify the workflow, config, scripts, or README also trigger
 
 - GitHub Actions performs compilation; the target PC is not used as a build machine.
 - xbps-src produces proper .xbps packages using Void's kernel packaging template.
-- The workflow uses the current void-linux/void-packages master template at build time. It fails safely if the expected configuration insertion point changes.
-- This first iteration changes the CPU target only. Further tuning should follow validation of the complete current kernel config and real hardware testing.
+- The workflow uses the current void-linux/void-packages master template at build time. It fails safely if the expected compiler-flag insertion point changes.
+- This first iteration adds compiler scheduling tuning only. Further tuning should follow validation of the complete current kernel config and real hardware testing.
 - Keep your existing working kernel installed until the custom kernel boots and all devices have been tested.
 - These are custom packages, not official Void Linux builds.
