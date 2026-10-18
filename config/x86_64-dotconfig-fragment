@@ -1,0 +1,5 @@
+# Hardware target: Intel Core i3-6100U (Skylake, x86-64-v3 capable).
+# Merge into Void's maintained x86_64 kernel config.
+# Keep broad driver support; tune only the CPU target here.
+CONFIG_MSKYLAKE=y
+# CONFIG_GENERIC_CPU is not set
