@@ -33,13 +33,12 @@ retry() {
 }
 
 retry xbps-install -Syu xbps
-retry xbps-install -y git base-devel xtools python3 util-linux
+retry xbps-install -y git base-devel xtools python3 util-linux shadow
 
 git clone --depth=1 https://github.com/void-linux/void-packages.git
 cd void-packages
 
 # Select the newest kernel series present in Void's packaging repository.
-# Stable series become eligible when Void adds their linuxX.Y template.
 if [ -z "$KERNEL_PACKAGE" ]; then
     KERNEL_PACKAGE="$(python3 - <<'PY'
 import pathlib
@@ -64,8 +63,7 @@ test -f "$template"
 test -f "$config"
 echo "Selected Void kernel package: $KERNEL_PACKAGE"
 
-# Apply only a safe scheduling hint for the target Skylake CPU. Do not use
-# -march=native or enable instructions that the target CPU may not support.
+# Skylake tuning without raising the x86-64 ISA baseline.
 python3 - "$template" <<'PY'
 import pathlib
 import sys
@@ -74,23 +72,33 @@ path = pathlib.Path(sys.argv[1])
 text = path.read_text()
 old = 'export KCFLAGS="-ffile-prefix-map=$wrksrc=."'
 new = 'export KCFLAGS="-ffile-prefix-map=$wrksrc=. -mtune=skylake"'
-if text.count(old) != 1:
-    raise SystemExit(
-        "Kernel template changed: expected exactly one KCFLAGS assignment; "
-        "refusing to silently drop target tuning"
-    )
+if old not in text:
+    if "-mtune=skylake" in text:
+        raise SystemExit("Skylake tuning already present; refusing duplicate")
+    raise SystemExit("Kernel template KCFLAGS assignment changed; refusing unsafe patch")
 path.write_text(text.replace(old, new, 1))
 PY
 
-# Bootstrap with xbps-src's default supported setup first. The ethereal
-# chroot is enabled only for package builds on hosted runners.
-./xbps-src binary-bootstrap
-export XBPS_CHROOT_CMD=ethereal
-export XBPS_ALLOW_CHROOT_BREAKOUT=yes
-./xbps-src -j"$BUILD_JOBS" pkg "$KERNEL_PACKAGE"
+# xbps-src explicitly refuses to run as root. Create a disposable unprivileged
+# builder, grant it only the workspace paths required for compilation, and run
+# both bootstrap and package compilation as that user.
+if ! id builder >/dev/null 2>&1; then
+    useradd -m -U -s /bin/sh builder
+fi
+chown -R builder:builder /workspace/void-packages
+mkdir -p /workspace/artifacts
+chown builder:builder /workspace/artifacts
 
-# Keep the installable kernel and headers packages; omit debug packages and
-# build metadata from the published artifact.
+su -s /bin/sh builder -c "
+    set -eu
+    cd /workspace/void-packages
+    ./xbps-src binary-bootstrap
+    export XBPS_CHROOT_CMD=ethereal
+    export XBPS_ALLOW_CHROOT_BREAKOUT=yes
+    ./xbps-src -j'$BUILD_JOBS' pkg '$KERNEL_PACKAGE'
+"
+
+# Publish installable packages only; omit debug packages and build metadata.
 find hostdir/binpkgs -type f -name "$KERNEL_PACKAGE-*.xbps" ! -name "*-dbg-*.xbps" -print0 \
     | xargs -0 -r cp -v -t /workspace/artifacts
 test -n "$(find /workspace/artifacts -maxdepth 1 -type f -name '*.xbps' -print -quit)"
