@@ -39,10 +39,10 @@ System Information
 	Manufacturer: HP
 	Product Name: HP Pavilion x360 Convertible
 	Version: Type1ProductConfigId
-	Serial Number: 8CG6151TYJ
-	UUID: 841e553a-0341-11e6-9c34-e094675a04eb
+	Serial Number: [REDACTED]
+	UUID: [REDACTED]
 	Wake-up Type: Power Switch
-	SKU Number: T0Y58PA#ACJ
+	SKU Number: [REDACTED-SKU]
 	Family: 103C_5335KV G=N L=CON B=HP S=PAV  
 
 Handle 0x0002, DMI type 2, 17 bytes
@@ -50,8 +50,8 @@ Base Board Information
 	Manufacturer: HP
 	Product Name: 80D1
 	Version: 84.28
-	Serial Number: PFJVV2B0G200JX
-	Asset Tag: Type2 - Board Asset Tag
+	Serial Number: [REDACTED]
+	Asset Tag:[REDACTED]
 	Features:
 		Board is a hosting board
 		Board is replaceable
@@ -107,8 +107,8 @@ Processor Information
 	L1 Cache Handle: 0x0006
 	L2 Cache Handle: 0x0007
 	L3 Cache Handle: 0x0008
-	Serial Number: To Be Filled By O.E.M.
-	Asset Tag: To Be Filled By O.E.M.
+	Serial Number:[REDACTED]
+	Asset Tag:[REDACTED]
 	Part Number: To Be Filled By O.E.M.
 	Core Count: 2
 	Core Enabled: 2
@@ -152,7 +152,7 @@ System Event Log
 	Access Method: General-purpose non-volatile data functions
 	Access Address: 0x0000
 	Status: Valid, Not Full
-	Change Token: 0x12345678
+	Change Token: [REDACTED]
 	Header Format: OEM-specific
 	Supported Log Type Descriptors: 3
 	Descriptor 1: POST memory resize
