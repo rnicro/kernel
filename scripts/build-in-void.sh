@@ -109,7 +109,7 @@ su -s /bin/sh builder -c "
     cd /workspace/void-packages
     ./xbps-src -A x86_64-musl binary-bootstrap
     test -x masterdir/usr/bin/xbps-query || {
-        echo "binary-bootstrap returned without installing xbps-query in masterdir" >&2
+        echo binary-bootstrap_returned_without_installing_xbps-query_in_masterdir >&2
         exit 1
     }
     export XBPS_CHROOT_CMD=ethereal
