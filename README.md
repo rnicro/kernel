@@ -19,7 +19,8 @@ Builds the newest stable Linux kernel series available as a maintained template 
 - Uses Void's maintained kernel template and x86_64 configuration rather than a hand-rolled kernel package.
 - Adds GCC's `-mtune=skylake` scheduling hint without raising the x86-64 instruction-set baseline. It deliberately avoids `-march=native`, which would tune for the GitHub runner and could emit unsupported instructions.
 - Preserves Void's broad driver configuration for graphics, wireless, storage, audio, card reader, input, power management, and external modules. Hardware-driver pruning and speculative Kconfig changes are avoided unless measurements and device tests justify them.
-- Builds inside the official Void musl container and publishes x86_64-musl packages.
+- Builds inside the official Void musl container and publishes x86_64-musl packages. GitHub Actions grants the container the namespace support required by `xbps-src` chroots.
+- Caches Void binary repository downloads and upstream source archives in GitHub Actions. Cache keys rotate weekly, with restore prefixes to reuse prior weeks; only downloaded inputs are cached, not host-specific chroots or kernel build trees.
 - Uses HTTPS and XBPS package-signature verification. The build overrides the failing default mirror endpoint with `repo-de.voidlinux.org` and retries transient repository failures.
 - The artifact contains installable kernel and headers `.xbps` packages only; debug packages and build metadata are excluded.
 
@@ -33,7 +34,7 @@ Pushes to `main` that modify the workflow, build scripts, or README trigger a bu
 
 ## Validation and safety
 
-- GitHub Actions performs compilation; the target laptop is not used as a build machine.
+- GitHub Actions performs compilation; the target laptop is not used as a build machine. The workflow caches reusable downloads to reduce repeat build setup time.
 - The build uses Void's `xbps-src` packaging template. It bootstraps and compiles as a dedicated unprivileged `builder` account (required by `xbps-src`), enabling the hosted-runner-compatible ethereal chroot only after bootstrap.
 - A successful package build does not prove that the kernel boots or improves real-world performance. Test installation, boot, suspend/resume, Wi-Fi, graphics, audio, touch input, card reader, and power behavior before relying on it.
 - Keep a known-working kernel installed for rollback. This is a personal custom package, not an official Void Linux build.
