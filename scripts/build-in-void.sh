@@ -84,9 +84,10 @@ test -f "$template" || { echo "Missing kernel template: $template" >&2; exit 1; 
 test -f "$config" || { echo "Missing x86_64 kernel config: $config" >&2; exit 1; }
 echo "Selected Void kernel package: $KERNEL_PACKAGE"
 
-# Make an explicit target-specific config overlay while retaining Void's base
-# driver coverage. Prefer 300 Hz over 1000 Hz for responsive laptop use without
-# the highest periodic-tick overhead; oldconfig resolves unavailable symbols.
+# Apply a production/performance profile to Void's maintained laptop config.
+# The Skylake target has 2 cores / 4 hardware threads and a single NUMA node.
+# Favor interactive latency under load, avoid server-style NUMA balancing and
+# remove selected debug/statistics features that add overhead to normal use.
 cp "$config" "$custom_config"
 python3 - "$custom_config" <<'PY'
 import pathlib
@@ -96,33 +97,58 @@ import sys
 path = pathlib.Path(sys.argv[1])
 lines = path.read_text().splitlines()
 values = {
+    # Fast interactive scheduling; idle CPUs still stop periodic ticks.
     "CONFIG_HZ_100": "n",
     "CONFIG_HZ_250": "n",
-    "CONFIG_HZ_300": "y",
-    "CONFIG_HZ_1000": "n",
-    "CONFIG_HZ": "300",
+    "CONFIG_HZ_300": "n",
+    "CONFIG_HZ_1000": "y",
+    "CONFIG_HZ": "1000",
+    "CONFIG_NO_HZ_IDLE": "y",
+    "CONFIG_NO_HZ_FULL": "n",
+    # Make Intel P-state start in the performance governor; schedutil remains
+    # built so it can be selected later if battery life is more important.
+    "CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE": "y",
+    "CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL": "n",
+    "CONFIG_CPU_FREQ_GOV_PERFORMANCE": "y",
     "CONFIG_CPU_FREQ_GOV_SCHEDUTIL": "y",
-    "CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL": "y",
     "CONFIG_X86_INTEL_PSTATE": "y",
     "CONFIG_INTEL_IDLE": "y",
+    # Fit static CPU tables and scheduling to the device's 4 logical CPUs.
+    "CONFIG_NR_CPUS": "4",
+    "CONFIG_NUMA_BALANCING": "n",
+    "CONFIG_NUMA_BALANCING_DEFAULT_ENABLED": "n",
+    # Disable instrumentation/debug checks that are not useful in the daily
+    # performance kernel and can add allocator/scheduler/PM overhead.
+    "CONFIG_SCHED_INFO": "n",
+    "CONFIG_SCHEDSTATS": "n",
+    "CONFIG_DEBUG_PREEMPT": "n",
+    "CONFIG_DEBUG_VIRTUAL": "n",
+    "CONFIG_DEBUG_WX": "n",
+    "CONFIG_DEBUG_MEMORY_INIT": "n",
+    "CONFIG_PAGE_POISONING": "n",
+    "CONFIG_SLUB_DEBUG": "n",
+    "CONFIG_KFENCE": "n",
+    "CONFIG_PM_DEBUG": "n",
+    "CONFIG_PM_SLEEP_DEBUG": "n",
+    "CONFIG_PM_TRACE": "n",
+    "CONFIG_PM_TRACE_RTC": "n",
 }
 seen = set()
 out = []
 for line in lines:
-    m = re.match(r"(# )?(CONFIG_[A-Z0-9_]+)(?:=| is not set)", line)
-    if m and m.group(2) in values:
-        key = m.group(2)
-        val = values[key]
-        out.append(f"{key}={val}" if val != "n" else f"# {key} is not set")
+    match = re.match(r"(# )?(CONFIG_[A-Z0-9_]+)(?:=| is not set)", line)
+    if match and match.group(2) in values:
+        key = match.group(2)
+        value = values[key]
+        out.append(f"{key}={value}" if value != "n" else f"# {key} is not set")
         seen.add(key)
     else:
         out.append(line)
-for key, val in values.items():
+for key, value in values.items():
     if key not in seen:
-        out.append(f"{key}={val}" if val != "n" else f"# {key} is not set")
+        out.append(f"{key}={value}" if value != "n" else f"# {key} is not set")
 path.write_text("\n".join(out) + "\n")
 PY
-
 
 # Tune instruction scheduling for Skylake without raising the x86-64 ISA baseline.
 python3 - "$template" <<'PY'
