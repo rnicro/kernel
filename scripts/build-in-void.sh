@@ -38,6 +38,13 @@ retry xbps-install -y git base-devel xtools python3 util-linux shadow
 git clone --depth=1 https://github.com/void-linux/void-packages.git
 cd void-packages
 
+# Reuse verified runner caches for downloaded source archives and XBPS packages.
+# Keep build outputs/chroots out of Actions cache; they are large and host-specific.
+mkdir -p /workspace/cache/sources /workspace/cache/repocache-x86_64-musl hostdir
+rm -rf hostdir/sources hostdir/repocache-x86_64-musl
+ln -s /workspace/cache/sources hostdir/sources
+ln -s /workspace/cache/repocache-x86_64-musl hostdir/repocache-x86_64-musl
+
 # Select the newest kernel series present in Void's packaging repository.
 if [ -z "$KERNEL_PACKAGE" ]; then
     KERNEL_PACKAGE="$(python3 - <<'PY'
@@ -85,7 +92,7 @@ PY
 if ! id builder >/dev/null 2>&1; then
     useradd -m -U -s /bin/sh builder
 fi
-chown -R builder:builder /workspace/void-packages
+chown -R builder:builder /workspace/void-packages /workspace/cache/sources /workspace/cache/repocache-x86_64-musl
 mkdir -p /workspace/artifacts
 chown builder:builder /workspace/artifacts
 
