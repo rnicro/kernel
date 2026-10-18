@@ -28,8 +28,8 @@ new = 'export KCFLAGS="-ffile-prefix-map=${wrksrc}=. -mtune=skylake"'
 if text.count(old) == 1:
     text = text.replace(old, new, 1)
 else:
-    anchor = "\\texport LDFLAGS=\\n"
-    addition = '\\texport KCFLAGS="${KCFLAGS} -mtune=skylake"\\n'
+    anchor = chr(9) + "export LDFLAGS=" + chr(10)
+    addition = chr(9) + 'export KCFLAGS="${KCFLAGS} -mtune=skylake"' + chr(10)
     if text.count(anchor) != 1 or "mtune=skylake" in text:
         raise SystemExit("Kernel template changed: could not safely apply Skylake tuning")
     text = text.replace(anchor, anchor + addition, 1)
