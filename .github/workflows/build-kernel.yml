@@ -5,18 +5,17 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/build-kernel.yml"
-      - "config/**"
       - "scripts/**"
       - "README.md"
   workflow_dispatch:
     inputs:
       package:
-        description: "Void kernel package template"
+        description: "Void kernel series to build"
         required: true
-        default: "linux6.18"
+        default: "linux7.2"
         type: choice
         options:
-          - linux6.18
+          - linux7.2
 
 permissions:
   contents: read
@@ -31,26 +30,28 @@ jobs:
     timeout-minutes: 360
     steps:
       - name: Check out this repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Build kernel package inside Void Linux
+      - name: Build x86_64-musl kernel package inside Void Linux
         env:
-          KERNEL_PACKAGE: ${{ inputs.package || 'linux6.18' }}
+          KERNEL_PACKAGE: ${{ inputs.package || 'linux7.2' }}
+          BUILD_JOBS: 4
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          docker pull voidlinux/voidlinux:latest
-          docker run --rm --privileged \
+          image="ghcr.io/void-linux/void-musl:20260901r1@sha256:5b01ccb49a601ba4a525d82841578055f8c5a48adabdfa1ad37c087ac0b01ce0"
+          docker pull "$image"
+          docker run --rm --privileged --cpus="$(nproc)" \
             -e KERNEL_PACKAGE="$KERNEL_PACKAGE" \
-            -e BUILD_JOBS=4 \
+            -e BUILD_JOBS="$BUILD_JOBS" \
             -v "$GITHUB_WORKSPACE:/workspace" \
             -w /workspace \
-            voidlinux/voidlinux:latest sh /workspace/scripts/build-in-void.sh
+            "$image" sh /workspace/scripts/build-in-void.sh
 
-      - name: Upload kernel packages
-        uses: actions/upload-artifact@v4
+      - name: Upload installable kernel packages
+        uses: actions/upload-artifact@v5
         with:
-          name: void-kernel-x86_64-skylake
-          path: artifacts/*
+          name: void-kernel-x86_64-musl-skylake
+          path: artifacts/*.xbps
           if-no-files-found: error
           retention-days: 14
