@@ -36,7 +36,7 @@ Pushes to `main` that modify the workflow or build scripts trigger a build; docu
 ## Validation and safety
 
 - GitHub Actions performs compilation; the target laptop is not used as a build machine. The workflow caches reusable downloads to reduce repeat build setup time.
-- The build uses Void's `xbps-src` packaging template. It bootstraps and compiles as a dedicated unprivileged `builder` account (required by `xbps-src`), enabling the hosted-runner-compatible ethereal chroot only after bootstrap.
+- The build uses Void's `xbps-src` packaging template. It bootstraps and compiles as a dedicated unprivileged `builder` account (required by `xbps-src`) using `uunshare` for both phases, so the target master directory remains isolated. The container's inherited `ethereal` mode is explicitly overridden because it requires the master directory to be a symlink to `/`.
 - The Skylake-specific compiler target can emit instructions unavailable on older CPUs; only use the package on the intended i3-6100U/Skylake laptop. A successful build does not prove bootability or improved performance, battery life, or thermals. Test boot, suspend/resume, Wi-Fi, graphics, audio, touch input, card reader, idle power, and sustained load.
 - A 300 Hz tick may trade some peak latency behavior for lower periodic-tick overhead compared with 1000 Hz; benchmark the actual workload and revert the overlay if responsiveness regresses.
 - Keep a known-working kernel installed for rollback. This is a personal custom package, not an official Void Linux build.
