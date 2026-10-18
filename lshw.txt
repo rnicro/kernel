@@ -1,6 +1,6 @@
 H/W path       Device    Class          Description
 ===================================================
-                         system         HP Pavilion x360 Convertible (T0Y58PA#ACJ)
+                         system         HP Pavilion x360 Convertible ([REDACTED-SKU])
 /0                       bus            80D1
 /0/0                     memory         128KiB BIOS
 /0/4                     processor      Intel(R) Core(TM) i3-6100U CPU @ 2.30GHz
