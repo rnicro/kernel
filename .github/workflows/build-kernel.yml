@@ -36,18 +36,18 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: cache/repocache-x86_64-musl
-          key: void-kernel-repocache-v1-x86_64-musl-${{ steps.cache-epoch.outputs.week }}
+          key: void-kernel-repocache-v2-x86_64-musl-${{ steps.cache-epoch.outputs.week }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            void-kernel-repocache-v1-x86_64-musl-
+            void-kernel-repocache-v2-x86_64-musl-
 
       - name: Restore kernel source cache
         id: source-cache
         uses: actions/cache/restore@v6
         with:
           path: cache/sources
-          key: void-kernel-sources-v1-${{ steps.cache-epoch.outputs.week }}
+          key: void-kernel-sources-v2-${{ steps.cache-epoch.outputs.week }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            void-kernel-sources-v1-
+            void-kernel-sources-v2-
 
       - name: Build x86_64-musl kernel package inside Void Linux
         env:
@@ -69,7 +69,7 @@ jobs:
             "$image" sh /workspace/scripts/build-in-void.sh
 
       - name: Save Void binary package cache
-        if: ${{ always() && !cancelled() && steps.xbps-cache.outputs.cache-hit != 'true' }}
+        if: ${{ always() && !cancelled() }}
         uses: actions/cache/save@v6
         continue-on-error: true
         with:
@@ -77,7 +77,7 @@ jobs:
           key: void-kernel-repocache-v1-x86_64-musl-${{ steps.cache-epoch.outputs.week }}
 
       - name: Save kernel source cache
-        if: ${{ always() && !cancelled() && steps.source-cache.outputs.cache-hit != 'true' }}
+        if: ${{ always() && !cancelled() }}
         uses: actions/cache/save@v6
         continue-on-error: true
         with:
