@@ -33,7 +33,7 @@ retry() {
 }
 
 retry xbps-install -Syu xbps
-retry xbps-install -y git base-devel xtools python3
+retry xbps-install -y git base-devel xtools python3 util-linux
 
 git clone --depth=1 https://github.com/void-linux/void-packages.git
 cd void-packages
