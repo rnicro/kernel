@@ -75,9 +75,50 @@ fi
 pkg="$KERNEL_PACKAGE"
 template="srcpkgs/$pkg/template"
 config="srcpkgs/$pkg/files/x86_64-dotconfig"
+custom_config="srcpkgs/$pkg/files/x86_64-dotconfig-custom"
 test -f "$template" || { echo "Missing kernel template: $template" >&2; exit 1; }
 test -f "$config" || { echo "Missing x86_64 kernel config: $config" >&2; exit 1; }
 echo "Selected Void kernel package: $KERNEL_PACKAGE"
+
+# Make an explicit target-specific config overlay while retaining Void's base
+# driver coverage. Prefer 300 Hz over 1000 Hz for responsive laptop use without
+# the highest periodic-tick overhead; oldconfig resolves unavailable symbols.
+cp "$config" "$custom_config"
+python3 - "$custom_config" <<'PY'
+import pathlib
+import re
+import sys
+
+path = pathlib.Path(sys.argv[1])
+lines = path.read_text().splitlines()
+values = {
+    "CONFIG_HZ_100": "n",
+    "CONFIG_HZ_250": "n",
+    "CONFIG_HZ_300": "y",
+    "CONFIG_HZ_1000": "n",
+    "CONFIG_HZ": "300",
+    "CONFIG_CPU_FREQ_GOV_SCHEDUTIL": "y",
+    "CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL": "y",
+    "CONFIG_X86_INTEL_PSTATE": "y",
+    "CONFIG_INTEL_IDLE": "y",
+}
+seen = set()
+out = []
+for line in lines:
+    m = re.match(r"(# )?(CONFIG_[A-Z0-9_]+)(?:=| is not set)", line)
+    if m and m.group(2) in values:
+        key = m.group(2)
+        val = values[key]
+        out.append(f"{key}={val}" if val != "n" else f"# {key} is not set")
+        seen.add(key)
+    else:
+        out.append(line)
+for key, val in values.items():
+    if key not in seen:
+        out.append(f"{key}={val}" if val != "n" else f"# {key} is not set")
+path.write_text("\n".join(out) + "\n")
+PY
+
 
 # Tune instruction scheduling for Skylake without raising the x86-64 ISA baseline.
 python3 - "$template" <<'PY'
@@ -87,7 +128,7 @@ import sys
 path = pathlib.Path(sys.argv[1])
 text = path.read_text()
 old = 'export KCFLAGS="-ffile-prefix-map=$wrksrc=."'
-new = 'export KCFLAGS="-ffile-prefix-map=$wrksrc=. -mtune=skylake"'
+new = 'export KCFLAGS="-ffile-prefix-map=$wrksrc=. -march=skylake -mtune=skylake"'
 if old not in text:
     if "-mtune=skylake" in text:
         raise SystemExit("Skylake tuning already present; refusing duplicate")
@@ -107,9 +148,9 @@ chown builder:builder /workspace/artifacts
 su -s /bin/sh builder -c "
     set -eu
     cd /workspace/void-packages
-    ./xbps-src -A x86_64-musl binary-bootstrap
-    # -A selects a target-specific masterdir on current xbps-src versions.
-    # The generic masterdir path is not the expected target directory.
+    # Ethereal mode defaults to the generic masterdir; pin both phases to the
+    # same target-specific masterdir so bootstrap and pkg cannot diverge.
+    ./xbps-src -A x86_64-musl -m masterdir-x86_64-musl binary-bootstrap
     if [ ! -x masterdir-x86_64-musl/usr/bin/bash ]; then
         echo binary-bootstrap_completed_but_target_masterdir_is_not_populated >&2
         echo Expected_masterdir-x86_64-musl_usr_bin_bash >&2
@@ -123,7 +164,7 @@ su -s /bin/sh builder -c "
     fi
     export XBPS_CHROOT_CMD=ethereal
     export XBPS_ALLOW_CHROOT_BREAKOUT=yes
-    ./xbps-src -A x86_64-musl -j'$BUILD_JOBS' pkg '$KERNEL_PACKAGE'
+    ./xbps-src -A x86_64-musl -m masterdir-x86_64-musl -j'$BUILD_JOBS' pkg '$KERNEL_PACKAGE'
 "
 
 # Publish only the requested installable package family, excluding debug builds.
