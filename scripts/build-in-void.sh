@@ -46,7 +46,7 @@ test -f "$config"
 
 # xbps-src refuses to run as root. Give it a dedicated unprivileged builder
 # with passwordless sudo only inside this disposable CI container.
-if ! getent group xbuilder >/dev/null 2>&1; then
+if ! grep -q '^xbuilder:' /etc/group; then
     groupadd xbuilder
 fi
 if ! id xbuilder >/dev/null 2>&1; then
