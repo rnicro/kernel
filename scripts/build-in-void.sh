@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-: "${KERNEL_PACKAGE:=linux7.2}"
+: "${KERNEL_PACKAGE:=}"
 : "${BUILD_JOBS:=4}"
 : "${VOID_REPO:=https://repo-de.voidlinux.org}"
 
@@ -38,11 +38,31 @@ retry xbps-install -y git base-devel xtools python3 util-linux
 git clone --depth=1 https://github.com/void-linux/void-packages.git
 cd void-packages
 
+# Select the newest kernel series present in Void's packaging repository.
+# Stable series become eligible when Void adds their linuxX.Y template.
+if [ -z "$KERNEL_PACKAGE" ]; then
+    KERNEL_PACKAGE="$(python3 - <<'PY'
+import pathlib
+import re
+versions = []
+for path in pathlib.Path("srcpkgs").glob("linux*"):
+    if path.is_dir() and (path / "template").is_file():
+        match = re.fullmatch(r"linux(\d+)\.(\d+)", path.name)
+        if match:
+            versions.append((int(match.group(1)), int(match.group(2)), path.name))
+if not versions:
+    raise SystemExit("No versioned Linux kernel templates found in Void Packages")
+print(max(versions)[2])
+PY
+)"
+fi
+
 pkg="$KERNEL_PACKAGE"
 template="srcpkgs/$pkg/template"
 config="srcpkgs/$pkg/files/x86_64-dotconfig"
 test -f "$template"
 test -f "$config"
+echo "Selected Void kernel package: $KERNEL_PACKAGE"
 
 # Apply only a safe scheduling hint for the target Skylake CPU. Do not use
 # -march=native or enable instructions that the target CPU may not support.
@@ -62,11 +82,11 @@ if text.count(old) != 1:
 path.write_text(text.replace(old, new, 1))
 PY
 
-# This is a disposable CI container. Use xbps-src's supported ethereal
-# chroot mode to avoid user-namespace restrictions imposed by hosted runners.
+# Bootstrap with xbps-src's default supported setup first. The ethereal
+# chroot is enabled only for package builds on hosted runners.
+./xbps-src binary-bootstrap
 export XBPS_CHROOT_CMD=ethereal
 export XBPS_ALLOW_CHROOT_BREAKOUT=yes
-./xbps-src binary-bootstrap
 ./xbps-src -j"$BUILD_JOBS" pkg "$KERNEL_PACKAGE"
 
 # Keep the installable kernel and headers packages; omit debug packages and
