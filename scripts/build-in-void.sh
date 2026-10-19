@@ -305,6 +305,7 @@ values = {
     "CONFIG_USB_PWC": "n",
     "CONFIG_SND_PCM_OSS": "n",
     "CONFIG_SND_SEQUENCER_OSS": "n",
+    "CONFIG_R8169": "n",
     # No VM/container usage: disable host/guest virtualization-only drivers.
     "CONFIG_KVM": "n",
     "CONFIG_KVM_INTEL": "n",
@@ -351,11 +352,11 @@ for line in lines:
     elif match and (
         "VIRTIO" in match.group(2)
         or match.group(2).startswith(("CONFIG_VHOST", "CONFIG_RPMSG", "CONFIG_REMOTEPROC"))
-        or (match.group(2).startswith("CONFIG_NET_VENDOR_") and match.group(2) != "CONFIG_NET_VENDOR_REALTEK")
+        or match.group(2).startswith("CONFIG_NET_VENDOR_")
         or (match.group(2).startswith("CONFIG_WLAN_VENDOR_") and match.group(2) != "CONFIG_WLAN_VENDOR_INTEL")
     ):
-        # Retain only Realtek wired networking and Intel Wi-Fi vendor families.
-        # The exact target drivers are audited after Kconfig resolves dependencies.
+        # Wired Ethernet is unused; retain only Intel Wi-Fi and separately configured
+        # Realtek PCI card-reader support.
         key = match.group(2)
         out.append(f"# {key} is not set")
         seen.add(key)
@@ -389,7 +390,7 @@ text = text.replace(oldconfig, newconfig)
 auditAnchor = "# Always use our revision to CONFIG_LOCALVERSION to match our pkg version."
 auditCode = "\n".join([
     "\t# Audit the resolved kernel config after oldconfig, before compilation.",
-    '\tfor setting in "CONFIG_EXT4_FS=y" "CONFIG_SWAP=y" "CONFIG_FAT_FS=m" "CONFIG_VFAT_FS=m" "CONFIG_ISO9660_FS=m" "CONFIG_SQUASHFS=m" "CONFIG_USB_STORAGE=m" "CONFIG_USB_UAS=m" "CONFIG_BLK_DEV_SD=m" "CONFIG_DRM_I915=m" "CONFIG_IWLWIFI=m" "CONFIG_R8169=m" "CONFIG_SATA_AHCI=m" "CONFIG_SND_HDA_INTEL=m" "CONFIG_MISC_RTSX_PCI=m" "CONFIG_MMC_REALTEK_PCI=m" "CONFIG_NET_VENDOR_REALTEK=y" "CONFIG_WLAN_VENDOR_INTEL=y"; do',
+    '\tfor setting in "CONFIG_EXT4_FS=y" "CONFIG_SWAP=y" "CONFIG_FAT_FS=m" "CONFIG_VFAT_FS=m" "CONFIG_ISO9660_FS=m" "CONFIG_SQUASHFS=m" "CONFIG_USB_STORAGE=m" "CONFIG_USB_UAS=m" "CONFIG_BLK_DEV_SD=m" "CONFIG_DRM_I915=m" "CONFIG_IWLWIFI=m" "CONFIG_SATA_AHCI=m" "CONFIG_SND_HDA_INTEL=m" "CONFIG_MISC_RTSX_PCI=m" "CONFIG_MMC_REALTEK_PCI=m" "CONFIG_WLAN_VENDOR_INTEL=y"; do',
     '\t\tif ! grep -Fxq "$setting" .config; then',
     '\t\t\techo "Required target kernel option missing after oldconfig: $setting" >&2',
     '\t\t\texit 1',
@@ -402,10 +403,8 @@ auditCode = "\n".join([
     '\t\tfi',
     '\tdone',
     '\tfor symbol in $(grep -oE "^CONFIG_NET_VENDOR_[A-Z0-9_]+=[ym]$" .config | cut -d= -f1); do',
-    '\t\tif [ "$symbol" != CONFIG_NET_VENDOR_REALTEK ]; then',
-    '\t\t\techo "Unexpected enabled Ethernet vendor after olddefconfig: $symbol" >&2',
-    '\t\t\texit 1',
-    '\t\tfi',
+    '\t\techo "Unexpected enabled Ethernet vendor after olddefconfig: $symbol" >&2',
+    '\t\texit 1',
     '\tdone',
     '\tfor symbol in $(grep -oE "^CONFIG_WLAN_VENDOR_[A-Z0-9_]+=[ym]$" .config | cut -d= -f1); do',
     '\t\tif [ "$symbol" != CONFIG_WLAN_VENDOR_INTEL ]; then',
