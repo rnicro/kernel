@@ -72,7 +72,7 @@ for path in pathlib.Path("srcpkgs").glob("linux*"):
     if not re.fullmatch(r"linux[0-9]+[.][0-9]+", path.name):
         continue
     text = template.read_text(errors="replace")
-    match = re.search(r"(?m)^version=([0-9]+(?:[.][0-9]+)+)\\s*$", text)
+    match = re.search(r"(?m)^version=([0-9]+(?:[.][0-9]+)+)\s*$", text)
     if match:
         version = tuple(int(part) for part in match.group(1).split("."))
         candidates.append((version, path.name))
