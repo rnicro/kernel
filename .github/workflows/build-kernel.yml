@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: kernel-build-${{ github.ref }}
@@ -96,3 +96,23 @@ jobs:
           path: artifacts/*.xbps
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish kernel packages to GitHub Releases
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: kernel-build-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: HP Pavilion x360 Linux 7.3-rc7 (build ${{ github.run_number }})
+          body: |
+            Device-specific Void Linux x86_64-musl kernel packages for the HP Pavilion x360.
+            Source: Linux 7.3-rc7, an upstream mainline release candidate, not a stable release.
+            Build commit: ${{ github.sha }}
+            Hardware boot, suspend/resume, power, and device functionality must be tested locally. Keep a known-working kernel for rollback.
+          files: artifacts/*.xbps
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: true
+          make_latest: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

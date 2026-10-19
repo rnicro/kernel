@@ -58,22 +58,49 @@ sync_caches() {
 }
 trap sync_caches EXIT HUP INT TERM
 
-# Select the newest stable kernel series available as a Void package template.
+# Default to the latest published Linux 7.3 mainline candidate as of 2026-10-19.
+# Void does not yet maintain a linux7.3 template, so adapt its newest maintained
+# kernel template locally while preserving Void's standard xbps-src build/install flow.
 if [ -z "$KERNEL_PACKAGE" ]; then
-    KERNEL_PACKAGE="$(python3 - <<'PY'
+    KERNEL_PACKAGE=linux7.3
+fi
+
+if [ "$KERNEL_PACKAGE" = "linux7.3" ] && [ ! -d srcpkgs/linux7.3 ]; then
+    base_pkg="$(python3 - <<'PY'
 import pathlib
 import re
 versions = []
 for path in pathlib.Path("srcpkgs").glob("linux*"):
     if path.is_dir() and (path / "template").is_file():
-        match = re.fullmatch(r"linux(\d+)\.(\d+)", path.name)
+        match = re.fullmatch(r"linux([0-9]+)[.]([0-9]+)", path.name)
         if match:
             versions.append((int(match.group(1)), int(match.group(2)), path.name))
 if not versions:
     raise SystemExit("No versioned Linux kernel templates found in Void Packages")
 print(max(versions)[2])
 PY
-)"
+    )"
+    echo "Creating local Linux 7.3 package template from $base_pkg"
+    cp -a "srcpkgs/$base_pkg" "srcpkgs/linux7.3"
+    python3 - "$base_pkg" <<'PY'
+import pathlib
+import re
+import sys
+base_pkg = sys.argv[1]
+path = pathlib.Path("srcpkgs/linux7.3/template")
+text = path.read_text()
+if f"pkgname={base_pkg}" not in text:
+    raise SystemExit(f"Unexpected base template package name in {path}")
+text = text.replace(base_pkg, "linux7.3")
+text, count = re.subn(r"(?m)^version=.*$", "version=7.3.rc7", text, count=1)
+if count != 1:
+    raise SystemExit("Unable to pin kernel package version to 7.3.rc7")
+# SHA-256 of upstream's official torvalds/linux-7.3-rc7.tar.gz source archive.
+text, count = re.subn(r'(?s)checksum="[^"]*"', 'checksum="f789fc0d7b3713b6be23284f2a9c35bf41fb86785b24cfcc506c20d8ff712523"', text, count=1)
+if count != 1:
+    raise SystemExit("Unable to pin the Linux 7.3-rc7 source checksum")
+path.write_text(text)
+PY
 fi
 
 pkg="$KERNEL_PACKAGE"
@@ -132,6 +159,31 @@ values = {
     "CONFIG_PM_SLEEP_DEBUG": "n",
     "CONFIG_PM_TRACE": "n",
     "CONFIG_PM_TRACE_RTC": "n",
+    # Remove DWARF/BTF metadata from this performance build to reduce build time
+    # and package size; this profile does not need an embedded-debug kernel.
+    "CONFIG_DEBUG_INFO_NONE": "y",
+    "CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT": "n",
+    "CONFIG_DEBUG_INFO_DWARF4": "n",
+    "CONFIG_DEBUG_INFO_DWARF5": "n",
+    "CONFIG_DEBUG_INFO_BTF": "n",
+    "CONFIG_DEBUG_INFO_BTF_MODULES": "n",
+    "CONFIG_GDB_SCRIPTS": "n",
+    # The laptop uses Intel HD Graphics 520 (i915), not these alternate GPU stacks.
+    "CONFIG_DRM_AMDGPU": "n",
+    "CONFIG_DRM_RADEON": "n",
+    "CONFIG_DRM_NOUVEAU": "n",
+    "CONFIG_DRM_VMWGFX": "n",
+    "CONFIG_DRM_VIRTIO_GPU": "n",
+    "CONFIG_DRM_QXL": "n",
+    "CONFIG_DRM_GMA500": "n",
+    "CONFIG_DRM_AST": "n",
+    "CONFIG_DRM_MGAG200": "n",
+    "CONFIG_DRM_CIRRUS_QEMU": "n",
+    "CONFIG_DRM_BOCHS": "n",
+    "CONFIG_DRM_VBOXVIDEO": "n",
+    "CONFIG_DRM_XE": "n",
+    "CONFIG_NUMA": "n",
+    "CONFIG_LOCALVERSION_AUTO": "n",
 }
 seen = set()
 out = []

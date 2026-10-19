@@ -1,44 +1,40 @@
 # Optimized Void Linux kernel for HP Pavilion x360
 
-Hardware serial numbers and UUIDs are redacted from the tracked diagnostic text dumps; the workflow runs a privacy scan to prevent accidental reintroduction.
-
-Builds the newest stable Linux kernel series available as a maintained template in Void Packages, producing installable packages for Void Linux x86_64-musl. Compilation runs on GitHub-hosted runners, not on the laptop.
+A device-specific Linux kernel package for **Void Linux x86_64-musl**, built through Void's `xbps-src` packaging system on GitHub Actions.
 
 ## Target hardware
 
 - **CPU:** Intel Core i3-6100U (Skylake, 2 cores / 4 threads)
-- **Graphics:** Intel HD Graphics 520 (i915)
-- **Wi-Fi:** Intel Wireless 3165 (iwlwifi)
-- **Ethernet:** Realtek RTL810xE (r8169)
-- **Storage:** Intel Sunrise Point-LP SATA/AHCI (ahci)
-- **Audio:** Intel Sunrise Point-LP HD Audio (snd_hda_intel)
-- **Card reader:** Realtek RTS522A (rtsx_pci)
+- **Graphics:** Intel HD Graphics 520 (`i915`)
+- **Wi-Fi:** Intel Wireless 3165 (`iwlwifi`)
+- **Ethernet:** Realtek RTL810xE (`r8169`)
+- **Storage:** SATA/AHCI (`ahci`)
+- **Audio:** Intel HD Audio (`snd_hda_intel`)
+- **Card reader:** Realtek RTS522A (`rtsx_pci`)
 - **Platform:** HP Pavilion x360, UEFI
 
-## Kernel and device tuning
+## Kernel source version
 
-- Automatically selects the highest versioned `linuxX.Y` kernel template available in the current Void Packages checkout. This follows new stable series when Void adds their package template; it does not build release candidates merely because they exist upstream.
-- Uses Void's maintained kernel template and x86_64 configuration rather than a hand-rolled kernel package.
-- Compiles kernel C code with GCC `-march=skylake -mtune=skylake` for the actual i3-6100U. This is a deliberately machine-specific personal kernel, not a generic x86-64 build.
-- Creates a target-specific `x86_64-dotconfig-custom` overlay from Void's maintained config. It uses a 1000 Hz tick for short scheduling intervals, enables tickless idle rather than full-dynticks isolation, defaults Intel P-state to the performance governor, sizes the kernel for four logical CPUs, and disables NUMA balancing on this single-node laptop. `oldconfig` resolves symbols unsupported by the selected kernel series.
-- Retains Void's broad driver configuration for graphics, wireless, storage, audio, card reader, input, power management, and external modules. It disables selected scheduler statistics, allocator poisoning/debugging, KFENCE, and PM debug/trace options that are unnecessary in this performance profile; it does not remove target-device drivers.
-- Builds inside the official Void musl container and publishes x86_64-musl packages. GitHub Actions grants the container the namespace support required by `xbps-src` chroots.
-- Caches Void binary repository downloads and upstream source archives in GitHub Actions. Cache keys rotate weekly and reuse prior-week downloads; caches are saved only after a successful build to avoid filling the repository cache quota with repeated failed-run snapshots. Only downloaded inputs are cached, not host-specific chroots or kernel build trees.
-- Uses HTTPS and XBPS package-signature verification. The build overrides the failing default mirror endpoint with `repo-de.voidlinux.org` and retries transient repository failures.
-- The artifact contains installable kernel and headers `.xbps` packages only; debug packages and build metadata are excluded.
+- The build targets **Linux 7.3-rc7**, the latest published 7.3 mainline candidate shown by [kernel.org](https://www.kernel.org/) on October 19, 2026. It is a release candidate, not a stable release; kernel.org lists 7.2.11 as the latest stable version at that time.
+- Void Packages does not yet maintain a `linux7.3` template. Until it does, the script adapts the newest maintained Void kernel template to package upstream's `linux-7.3-rc7.tar.gz`, with its SHA-256 pinned in the script.
+- When Void adds its own `linux7.3` template, the build uses that maintained template rather than creating a local copy.
 
-## Build
+## Device-specific optimization
 
-1. Open **Actions → Build optimized Void Linux kernel**.
-2. Run the workflow on `main`; it detects the newest kernel series available in Void Packages automatically.
-3. Download the `void-kernel-x86_64-musl-skylake` artifact after a successful run.
+- Compile with GCC `-march=skylake -mtune=skylake`; this is deliberately not intended to run on older CPU generations.
+- Keep the Intel graphics, Intel Wi-Fi, Realtek Ethernet/card-reader, SATA/AHCI, HD-audio, input and power-management support from Void's maintained configuration.
+- Use a 1000 Hz timer with tickless idle, default Intel P-state to the performance governor, size CPU tables for four logical CPUs, and disable NUMA balancing and NUMA support for this single-node laptop.
+- Disable selected runtime debug/statistics overhead, embedded DWARF/BTF debug data, and non-target GPU drivers (AMD/ATI, Nouveau, VMware, VirtIO, QXL, and virtual/server display adapters). Kconfig resolves symbols available in each kernel version; target-device drivers are not deliberately removed.
+- The performance governor and 1000 Hz tick prioritize responsiveness; power draw, battery life, and thermals may worsen. These are configuration choices, not measured performance claims.
 
-Pushes to `main` that modify the workflow or build scripts trigger a build; documentation-only edits do not consume build minutes. Use **workflow_dispatch** to rebuild against the newest kernel template currently available in Void Packages. All routine changes go directly to `main`; do not create feature branches.
+## Build and releases
 
-## Validation and safety
+- Pushes to `main` that modify `.github/workflows/build-kernel.yml` or `scripts/**` trigger a build. Documentation-only changes do not consume build minutes. Manual runs are available from **Actions → Build optimized Void Linux kernel**.
+- Successful `main` builds publish installable `.xbps` packages as a GitHub prerelease named `kernel-build-N`. The Actions artifact `void-kernel-x86_64-musl-skylake` is also retained for 14 days.
+- Published packages target Void Linux `x86_64-musl`; they are not official Void Linux builds.
 
-- GitHub Actions performs compilation; the target laptop is not used as a build machine. The workflow caches reusable downloads to reduce repeat build setup time.
-- The build uses Void's `xbps-src` packaging template. It bootstraps and compiles as a dedicated unprivileged `builder` account using `uunshare` for both phases, keeping the target master directory isolated. The container's inherited `ethereal` mode is explicitly overridden because it requires the master directory to be a symlink to `/`. A lightweight privacy scan checks tracked `.txt` files before the expensive compile starts.
-- The default performance governor favors responsiveness over battery runtime and may increase heat or fan activity; `schedutil` remains available as a runtime alternative. A successful build does not prove bootability or improved performance, battery life, or thermals. Test boot, suspend/resume, Wi-Fi, graphics, audio, touch input, card reader, idle power, and sustained load.
-- The 1000 Hz tick favors scheduling responsiveness under load, while `NO_HZ_IDLE` avoids periodic ticks during idle. Benchmark responsiveness, idle power, temperature, and sustained load on the actual laptop; revert any profile choice that hurts the user's workload.
-- Keep a known-working kernel installed for rollback. This is a personal custom package, not an official Void Linux build.
+## Repository hygiene and validation
+
+- Raw system diagnostic dumps were removed from version control because they are not required to build the package. The privacy gate continues to scan any tracked `.txt` files before a build.
+- Build caches contain downloaded source archives and binary repository packages only, not chroots or kernel build trees. XBPS package signatures remain enabled.
+- A successful CI build proves compilation and packaging only. Test boot, graphics, Wi-Fi, Ethernet, audio, touchscreen/input, card reader, suspend/resume, idle power, and sustained load on the laptop. Keep a known-working kernel installed for rollback.
