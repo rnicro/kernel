@@ -152,8 +152,8 @@ text = re.sub(r'(?m)^pkgname=.*$', f'pkgname={package}', text, count=1)
 text = re.sub(r'(?m)^version=.*$', f'version={version}', text, count=1)
 text = re.sub(r'(?m)^revision=.*$', f'revision={revision}', text, count=1)
 text = re.sub(r'(?ms)^checksum=".*?"', f'checksum="{checksum}"', text, count=1)
-text = re.sub(r'(?m)^linux7[.]2(?=-)', package, text)
-if 'linux7.2' in text or f'pkgname={package}' not in text:
+text = text.replace('linux7.2', package)
+if f'pkgname={package}' not in text or 'linux7.2' in text:
     raise SystemExit("Failed to adapt fallback template package names safely")
 pathlib.Path(target).write_text(text)
 PY
