@@ -165,6 +165,93 @@ values = {
     "CONFIG_DRM_VBOXVIDEO": "n",
     "CONFIG_DRM_XE": "n",
     "CONFIG_NUMA": "n",
+    # Filesystem allowlist: ext4 root, FAT/VFAT, and OS installer media only.
+    "CONFIG_EXT4_FS": "y",
+    "CONFIG_EXT2_FS": "n",
+    "CONFIG_EXT3_FS": "n",
+    "CONFIG_FAT_FS": "m",
+    "CONFIG_MSDOS_FS": "n",
+    "CONFIG_VFAT_FS": "m",
+    "CONFIG_ISO9660_FS": "m",
+    "CONFIG_SQUASHFS": "m",
+    "CONFIG_UDF_FS": "n",
+    "CONFIG_EXFAT_FS": "n",
+    "CONFIG_NTFS_FS": "n",
+    "CONFIG_NTFS3_FS": "n",
+    "CONFIG_BTRFS_FS": "n",
+    "CONFIG_XFS_FS": "n",
+    "CONFIG_F2FS_FS": "n",
+    "CONFIG_JFS_FS": "n",
+    "CONFIG_GFS2_FS": "n",
+    "CONFIG_OCFS2_FS": "n",
+    "CONFIG_NILFS2_FS": "n",
+    "CONFIG_REISERFS_FS": "n",
+    "CONFIG_ZONEFS_FS": "n",
+    "CONFIG_HFS_FS": "n",
+    "CONFIG_HFSPLUS_FS": "n",
+    "CONFIG_HPFS_FS": "n",
+    "CONFIG_MINIX_FS": "n",
+    "CONFIG_QNX4FS_FS": "n",
+    "CONFIG_QNX6FS_FS": "n",
+    "CONFIG_SYSV_FS": "n",
+    "CONFIG_UFS_FS": "n",
+    "CONFIG_ADFS_FS": "n",
+    "CONFIG_AFFS_FS": "n",
+    "CONFIG_BEFS_FS": "n",
+    "CONFIG_BFS_FS": "n",
+    "CONFIG_EFS_FS": "n",
+    "CONFIG_CRAMFS": "n",
+    "CONFIG_EROFS_FS": "n",
+    "CONFIG_OMFS_FS": "n",
+    "CONFIG_ROMFS_FS": "n",
+    "CONFIG_ORANGEFS_FS": "n",
+    "CONFIG_ECRYPT_FS": "n",
+    "CONFIG_NFS_FS": "n",
+    "CONFIG_CIFS": "n",
+    "CONFIG_SMBFS": "n",
+    "CONFIG_SMB_SERVER": "n",
+    "CONFIG_CEPH_FS": "n",
+    "CONFIG_CODA_FS": "n",
+    "CONFIG_AFS_FS": "n",
+    "CONFIG_9P_FS": "n",
+    "CONFIG_VBOXSF_FS": "n",
+    "CONFIG_FUSE_FS": "n",
+    "CONFIG_OVERLAY_FS": "n",
+    # No touchscreen, webcam/video capture, or legacy OSS audio emulation.
+    "CONFIG_INPUT_TOUCHSCREEN": "n",
+    "CONFIG_TOUCHSCREEN_USB_COMPOSITE": "n",
+    "CONFIG_MEDIA_SUPPORT": "n",
+    "CONFIG_MEDIA_CAMERA_SUPPORT": "n",
+    "CONFIG_VIDEO_DEV": "n",
+    "CONFIG_USB_VIDEO_CLASS": "n",
+    "CONFIG_USB_GSPCA": "n",
+    "CONFIG_USB_PWC": "n",
+    "CONFIG_SND_PCM_OSS": "n",
+    "CONFIG_SND_SEQUENCER_OSS": "n",
+    # No VM/container usage: disable host/guest virtualization-only drivers.
+    "CONFIG_KVM": "n",
+    "CONFIG_KVM_INTEL": "n",
+    "CONFIG_VHOST": "n",
+    "CONFIG_VHOST_NET": "n",
+    "CONFIG_VHOST_VSOCK": "n",
+    "CONFIG_VIRTIO": "n",
+    "CONFIG_VIRTIO_PCI": "n",
+    "CONFIG_VIRTIO_MMIO": "n",
+    "CONFIG_VIRTIO_BLK": "n",
+    "CONFIG_VIRTIO_NET": "n",
+    "CONFIG_VIRTIO_GPU": "n",
+    "CONFIG_VIRTIO_FS": "n",
+    "CONFIG_VIRTIO_CONSOLE": "n",
+    "CONFIG_VIRTIO_INPUT": "n",
+    "CONFIG_XEN": "n",
+    "CONFIG_XENFS": "n",
+    "CONFIG_HYPERV": "n",
+    "CONFIG_VBOXGUEST": "n",
+    "CONFIG_VMWARE_BALLOON": "n",
+    "CONFIG_VMWARE_VMCI": "n",
+    "CONFIG_VMWARE_PVSCSI": "n",
+    "CONFIG_DRM_I915_GVT": "n",
+    "CONFIG_DRM_I915_GVT_KVMGT": "n",
     "CONFIG_LOCALVERSION_AUTO": "n",
 }
 seen = set()
@@ -197,7 +284,14 @@ if old not in text:
     if "-mtune=skylake" in text:
         raise SystemExit("Skylake tuning already present; refusing duplicate")
     raise SystemExit("Kernel template KCFLAGS assignment changed; refusing unsafe patch")
-path.write_text(text.replace(old, new, 1))
+text = text.replace(old, new, 1)
+auditAnchor = "# Always use our revision to CONFIG_LOCALVERSION to match our pkg version."
+auditCode = "\t# Audit the resolved kernel config after oldconfig, before compilation.\n\tfor setting in \"CONFIG_EXT4_FS=y\" \"CONFIG_SWAP=y\" \"CONFIG_FAT_FS=m\" \"CONFIG_VFAT_FS=m\" \"CONFIG_ISO9660_FS=m\" \"CONFIG_SQUASHFS=m\" \"CONFIG_USB_STORAGE=m\" \"CONFIG_USB_UAS=m\" \"CONFIG_BLK_DEV_SD=m\" \"CONFIG_DRM_I915=m\" \"CONFIG_IWLWIFI=m\" \"CONFIG_R8169=m\" \"CONFIG_SATA_AHCI=m\" \"CONFIG_SND_HDA_INTEL=m\" \"CONFIG_MISC_RTSX_PCI=m\" \"CONFIG_MMC_REALTEK_PCI=m\"; do\n\t\\tif ! grep -Fxq \"$setting\" .config; then\n\t\\t\\techo \"Required target kernel option missing after oldconfig: $setting\" >&2\n\t\\t\\texit 1\n\t\\tfi\n\tdone\n\tfor symbol in CONFIG_EXT2_FS CONFIG_EXT3_FS CONFIG_MSDOS_FS CONFIG_UDF_FS CONFIG_EXFAT_FS CONFIG_NTFS_FS CONFIG_NTFS3_FS CONFIG_BTRFS_FS CONFIG_XFS_FS CONFIG_F2FS_FS CONFIG_JFS_FS CONFIG_GFS2_FS CONFIG_OCFS2_FS CONFIG_NILFS2_FS CONFIG_REISERFS_FS CONFIG_ZONEFS_FS CONFIG_HFS_FS CONFIG_HFSPLUS_FS CONFIG_HPFS_FS CONFIG_MINIX_FS CONFIG_QNX4FS_FS CONFIG_QNX6FS_FS CONFIG_SYSV_FS CONFIG_UFS_FS CONFIG_ADFS_FS CONFIG_AFFS_FS CONFIG_BEFS_FS CONFIG_BFS_FS CONFIG_EFS_FS CONFIG_CRAMFS CONFIG_EROFS_FS CONFIG_OMFS_FS CONFIG_ROMFS_FS CONFIG_ORANGEFS_FS CONFIG_ECRYPT_FS CONFIG_NFS_FS CONFIG_CIFS CONFIG_SMBFS CONFIG_SMB_SERVER CONFIG_CEPH_FS CONFIG_CODA_FS CONFIG_AFS_FS CONFIG_9P_FS CONFIG_VBOXSF_FS CONFIG_FUSE_FS CONFIG_OVERLAY_FS CONFIG_INPUT_TOUCHSCREEN CONFIG_TOUCHSCREEN_USB_COMPOSITE CONFIG_MEDIA_SUPPORT CONFIG_MEDIA_CAMERA_SUPPORT CONFIG_VIDEO_DEV CONFIG_USB_VIDEO_CLASS CONFIG_USB_GSPCA CONFIG_USB_PWC CONFIG_SND_PCM_OSS CONFIG_SND_SEQUENCER_OSS CONFIG_KVM CONFIG_KVM_INTEL CONFIG_VHOST CONFIG_VHOST_NET CONFIG_VHOST_VSOCK CONFIG_VIRTIO CONFIG_VIRTIO_PCI CONFIG_VIRTIO_MMIO CONFIG_VIRTIO_BLK CONFIG_VIRTIO_NET CONFIG_VIRTIO_GPU CONFIG_VIRTIO_FS CONFIG_VIRTIO_CONSOLE CONFIG_VIRTIO_INPUT CONFIG_XEN CONFIG_XENFS CONFIG_HYPERV CONFIG_VBOXGUEST CONFIG_VMWARE_BALLOON CONFIG_VMWARE_VMCI CONFIG_VMWARE_PVSCSI CONFIG_DRM_I915_GVT CONFIG_DRM_I915_GVT_KVMGT; do\n\t\\tif grep -Eq \"^${symbol}=[ym]$\" .config; then\n\t\\t\\techo \"Unexpected enabled kernel option after oldconfig: ${symbol}\" >&2\n\t\\t\\texit 1\n\t\\tfi\n\tdone"
+if auditAnchor not in text:
+    raise SystemExit("Kernel template do_configure audit anchor changed")
+if "# Audit the resolved kernel config after oldconfig, before compilation." not in text:
+    text = text.replace(auditAnchor, auditAnchor + "\n" + auditCode, 1)
+path.write_text(text)
 PY
 
 # xbps-src must run unprivileged. Keep bootstrap and package compilation on
