@@ -182,6 +182,7 @@ echo "Selected Void kernel package: $KERNEL_PACKAGE"
 cp "$config" "$custom_config"
 # Apply the target kernel profile with a separately tested, idempotent transformer.
 python3 /workspace/scripts/optimize-kernel-config.py "$custom_config"
+cp /workspace/scripts/optimize-kernel-config.py "srcpkgs/$KERNEL_PACKAGE/files/optimize-kernel-config.py"
 
 # Tune code generation specifically for Skylake; this kernel is not intended for older CPUs.
 python3 - "$template" <<'PY'
@@ -206,7 +207,7 @@ auditAnchor = "# Always use our revision to CONFIG_LOCALVERSION to match our pkg
 auditCode = "\n".join([
     "\t# Audit the resolved kernel config after oldconfig, before compilation.",
     "\t# Normalize vendor menus newly introduced since the baseline config.",
-    '\tpython3 /workspace/scripts/optimize-kernel-config.py --normalize-resolved .config',
+    '\tpython3 ${FILESDIR}/optimize-kernel-config.py --normalize-resolved .config',
     '\tmake ${makejobs} ARCH=$arch ${_cross} olddefconfig',
     '\tfor setting in "CONFIG_EXT4_FS=y" "CONFIG_SWAP=y" "CONFIG_FAT_FS=m" "CONFIG_VFAT_FS=m" "CONFIG_ISO9660_FS=m" "CONFIG_SQUASHFS=m" "CONFIG_USB_STORAGE=m" "CONFIG_USB_UAS=m" "CONFIG_BLK_DEV_SD=m" "CONFIG_DRM_I915=m" "CONFIG_IWLWIFI=m" "CONFIG_SATA_AHCI=m" "CONFIG_SND_HDA_INTEL=m" "CONFIG_MISC_RTSX_PCI=m" "CONFIG_MMC_REALTEK_PCI=m" "CONFIG_WLAN_VENDOR_INTEL=y"; do',
     '\t\tif ! grep -Fxq "$setting" .config; then',

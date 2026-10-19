@@ -34,6 +34,8 @@ jobs:
           bash -n scripts/publish-release.sh scripts/test-publish-release.sh
           python3 -m py_compile scripts/optimize-kernel-config.py scripts/test-kernel-config-profile.py
           python3 scripts/test-kernel-config-profile.py
+          grep -Fq \'cp /workspace/scripts/optimize-kernel-config.py\' scripts/build-in-void.sh
+          grep -Fq \'${FILESDIR}/optimize-kernel-config.py --normalize-resolved .config\' scripts/build-in-void.sh
           bash scripts/test-publish-release.sh
 
       - name: Allow unprivileged build namespaces
