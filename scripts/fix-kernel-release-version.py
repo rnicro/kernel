@@ -17,10 +17,10 @@ CHECK = '\tactual_kernver="$(make ${makejobs} ARCH=$arch ${_cross} -s kernelrele
 def patch(path: pathlib.Path) -> None:
     text = path.read_text()
 
-    if ASSIGNMENT in text:
+    if RULE not in text:
+        if ASSIGNMENT not in text:
+            raise SystemExit("Kernel template _kernver assignment changed; refusing unsafe patch")
         text = text.replace(ASSIGNMENT, ASSIGNMENT + "\n# Mainline X.Y tarballs build as KERNELRELEASE X.Y.0; package version stays X.Y.\n" + RULE, 1)
-    elif RULE not in text:
-        raise SystemExit("Kernel template _kernver assignment changed; refusing unsafe patch")
 
     if CHECK not in text:
         matches = list(re.finditer(r'(?m)^[ \t]*sed -i -e .*CONFIG_LOCALVERSION.*\.config$', text))
