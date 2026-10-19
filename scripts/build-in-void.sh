@@ -238,6 +238,7 @@ values = {
     "CONFIG_VHOST_VDPA": "n",
     "CONFIG_VHOST_RING": "n",
     "CONFIG_VHOST_IOTLB": "n",
+    "CONFIG_RPMSG_VIRTIO": "n",
     "CONFIG_VIRTIO": "n",
     "CONFIG_VIRTIO_PCI": "n",
     "CONFIG_VIRTIO_MMIO": "n",
