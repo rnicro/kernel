@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: kernel-build-${{ github.ref }}
@@ -26,6 +26,13 @@ jobs:
 
       - name: Check text dumps for confidential identifiers
         run: sh scripts/check-text-privacy.sh
+
+      - name: Validate build and release scripts
+        run: |
+          set -euo pipefail
+          sh -n scripts/build-in-void.sh
+          bash -n scripts/publish-release.sh scripts/test-publish-release.sh
+          bash scripts/test-publish-release.sh
 
       - name: Allow unprivileged build namespaces
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -56,7 +63,9 @@ jobs:
 
       - name: Build x86_64-musl kernel package inside Void Linux
         env:
-          KERNEL_PACKAGE: ""
+          KERNEL_PACKAGE: "linux7.3"
+          KERNEL_VERSION: "7.3"
+          KERNEL_REVISION: "1"
           BUILD_JOBS: 4
         run: |
           set -euo pipefail
@@ -68,6 +77,8 @@ jobs:
             --security-opt apparmor=unconfined \
             --cap-add SYS_ADMIN \
             -e KERNEL_PACKAGE="$KERNEL_PACKAGE" \
+            -e KERNEL_VERSION="$KERNEL_VERSION" \
+            -e KERNEL_REVISION="$KERNEL_REVISION" \
             -e BUILD_JOBS="$BUILD_JOBS" \
             -v "$GITHUB_WORKSPACE:/workspace" \
             -w /workspace \
@@ -92,42 +103,37 @@ jobs:
       - name: Upload installable kernel packages
         uses: actions/upload-artifact@v7
         with:
-          name: void-kernel-x86_64-musl-skylake
+          name: kernel-x86_64-musl
           path: artifacts/*.xbps
           if-no-files-found: error
-          retention-days: 14
+          compression-level: 0
+          retention-days: 1
 
-      - name: Read built kernel version
-        id: kernel-version
-        shell: bash
-        run: |
-          set -euo pipefail
-          package="$(find artifacts -maxdepth 1 -type f -name 'linux[0-9]*-*.xbps' ! -name '*-headers-*' ! -name '*-dbg-*' -print -quit)"
-          test -n "$package" || { echo 'No main kernel package found' >&2; exit 1; }
-          filename="$(basename "$package")"
-          if [[ "$filename" =~ ^linux[^-]+-([0-9]+(\.[0-9]+)+)_[0-9]+\..*\.xbps$ ]]; then
-            echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
-          else
-            echo "Could not parse kernel version from $filename" >&2
-            exit 1
-          fi
-
-      - name: Publish kernel packages to GitHub Releases
-        if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
+  
+  publish:
+    name: Publish versioned kernel release
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Check out release helper
+        uses: actions/checkout@v7
         with:
-          tag_name: kernel-build-${{ github.run_number }}
-          target_commitish: ${{ github.sha }}
-          name: HP Pavilion x360 Linux ${{ steps.kernel-version.outputs.version }} (build ${{ github.run_number }})
-          body: |
-            Device-specific Void Linux x86_64-musl packages built from the newest stable numeric kernel template available in Void Packages at build time.
-            CPU target: Intel Skylake. These are custom packages, not official Void Linux builds.
-            Build commit: ${{ github.sha }}
-            Test boot, suspend/resume, power, and device functionality on the laptop; retain a known-working kernel for rollback.
-          files: artifacts/*.xbps
-          fail_on_unmatched_files: true
-          draft: false
-          prerelease: false
-          make_latest: true
+          persist-credentials: false
+
+      - name: Download kernel packages
+        uses: actions/download-artifact@v8
+        with:
+          name: kernel-x86_64-musl
+          path: artifacts
+
+      - name: Publish package-only release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          KERNEL_PACKAGE: linux7.3
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: bash scripts/publish-release.sh artifacts
