@@ -58,49 +58,31 @@ sync_caches() {
 }
 trap sync_caches EXIT HUP INT TERM
 
-# Default to the latest published Linux 7.3 mainline candidate as of 2026-10-19.
-# Void does not yet maintain a linux7.3 template, so adapt its newest maintained
-# kernel template locally while preserving Void's standard xbps-src build/install flow.
+# Select the newest stable kernel version with a maintained Void Packages template.
+# Numeric versions only are accepted; release candidates and other pre-releases are skipped.
 if [ -z "$KERNEL_PACKAGE" ]; then
-    KERNEL_PACKAGE=linux7.3
-fi
-
-if [ "$KERNEL_PACKAGE" = "linux7.3" ] && [ ! -d srcpkgs/linux7.3 ]; then
-    base_pkg="$(python3 - <<'PY'
+    KERNEL_PACKAGE="$(python3 - <<'PY'
 import pathlib
 import re
-versions = []
+candidates = []
 for path in pathlib.Path("srcpkgs").glob("linux*"):
-    if path.is_dir() and (path / "template").is_file():
-        match = re.fullmatch(r"linux([0-9]+)[.]([0-9]+)", path.name)
-        if match:
-            versions.append((int(match.group(1)), int(match.group(2)), path.name))
-if not versions:
-    raise SystemExit("No versioned Linux kernel templates found in Void Packages")
-print(max(versions)[2])
+    template = path / "template"
+    if not path.is_dir() or not template.is_file():
+        continue
+    if not re.fullmatch(r"linux[0-9]+[.][0-9]+", path.name):
+        continue
+    text = template.read_text(errors="replace")
+    match = re.search(r"(?m)^version=([0-9]+(?:[.][0-9]+)+)\\s*$", text)
+    if match:
+        version = tuple(int(part) for part in match.group(1).split("."))
+        candidates.append((version, path.name))
+if not candidates:
+    raise SystemExit("No stable versioned Linux kernel template found in Void Packages")
+version, package = max(candidates)
+print(package)
+print(f"Selected stable kernel template {package}, version {'.'.join(map(str, version))}", file=__import__('sys').stderr)
 PY
     )"
-    echo "Creating local Linux 7.3 package template from $base_pkg"
-    cp -a "srcpkgs/$base_pkg" "srcpkgs/linux7.3"
-    python3 - "$base_pkg" <<'PY'
-import pathlib
-import re
-import sys
-base_pkg = sys.argv[1]
-path = pathlib.Path("srcpkgs/linux7.3/template")
-text = path.read_text()
-if f"pkgname={base_pkg}" not in text:
-    raise SystemExit(f"Unexpected base template package name in {path}")
-text = text.replace(base_pkg, "linux7.3")
-text, count = re.subn(r"(?m)^version=.*$", "version=7.3.rc7", text, count=1)
-if count != 1:
-    raise SystemExit("Unable to pin kernel package version to 7.3.rc7")
-# SHA-256 of upstream's official torvalds/linux-7.3-rc7.tar.gz source archive.
-text, count = re.subn(r'(?s)checksum="[^"]*"', 'checksum="f789fc0d7b3713b6be23284f2a9c35bf41fb86785b24cfcc506c20d8ff712523"', text, count=1)
-if count != 1:
-    raise SystemExit("Unable to pin the Linux 7.3-rc7 source checksum")
-path.write_text(text)
-PY
 fi
 
 pkg="$KERNEL_PACKAGE"
@@ -202,7 +184,7 @@ for key, value in values.items():
 path.write_text("\n".join(out) + "\n")
 PY
 
-# Tune instruction scheduling for Skylake without raising the x86-64 ISA baseline.
+# Tune code generation specifically for Skylake; this kernel is not intended for older CPUs.
 python3 - "$template" <<'PY'
 import pathlib
 import sys

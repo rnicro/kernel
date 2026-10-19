@@ -97,22 +97,37 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Read built kernel version
+        id: kernel-version
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="$(find artifacts -maxdepth 1 -type f -name 'linux[0-9]*-*.xbps' ! -name '*-headers-*' ! -name '*-dbg-*' -print -quit)"
+          test -n "$package" || { echo 'No main kernel package found' >&2; exit 1; }
+          filename="$(basename "$package")"
+          if [[ "$filename" =~ ^linux[^-]+-([0-9]+(\.[0-9]+)+)_[0-9]+\..*\.xbps$ ]]; then
+            echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "Could not parse kernel version from $filename" >&2
+            exit 1
+          fi
+
       - name: Publish kernel packages to GitHub Releases
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: kernel-build-${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          name: HP Pavilion x360 Linux 7.3-rc7 (build ${{ github.run_number }})
+          name: HP Pavilion x360 Linux ${{ steps.kernel-version.outputs.version }} (build ${{ github.run_number }})
           body: |
-            Device-specific Void Linux x86_64-musl kernel packages for the HP Pavilion x360.
-            Source: Linux 7.3-rc7, an upstream mainline release candidate, not a stable release.
+            Device-specific Void Linux x86_64-musl packages built from the newest stable numeric kernel template available in Void Packages at build time.
+            CPU target: Intel Skylake. These are custom packages, not official Void Linux builds.
             Build commit: ${{ github.sha }}
-            Hardware boot, suspend/resume, power, and device functionality must be tested locally. Keep a known-working kernel for rollback.
+            Test boot, suspend/resume, power, and device functionality on the laptop; retain a known-working kernel for rollback.
           files: artifacts/*.xbps
           fail_on_unmatched_files: true
           draft: false
-          prerelease: true
-          make_latest: false
+          prerelease: false
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
