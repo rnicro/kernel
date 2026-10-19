@@ -17,6 +17,7 @@ A device-specific Linux kernel package for **Void Linux x86_64-musl**, built wit
 
 - Targets **Linux 7.3 mainline**. As of 2026-10-19, 7.3 is mainline rather than stable; kernel.org lists 7.2.11 as the latest stable release. This repository intentionally follows 7.3 as requested.
 - Compile with `-march=skylake -mtune=skylake`; this device-specific kernel is not intended for older CPUs.
+- Disable non-target Ethernet and Wi-Fi vendor families; only the Realtek wired and Intel wireless driver families are retained. Add a vendor back if external adapters are part of the actual hardware profile.
 - Keep ext4, FAT/VFAT, swap, ISO9660 and SquashFS. Ext4 is built in for root-filesystem robustness; FAT/VFAT remain modules for EFI/removable-media support. ISO9660 and SquashFS remain available for OS installer/live media.
 - Disable unused filesystems and network mounts, including Btrfs, XFS, F2FS, JFS, NILFS2, NTFS, exFAT, UDF, HFS, NFS, CIFS/SMB and other less-common filesystems. This profile will not mount exFAT or NTFS drives unless those options are re-enabled.
 - Disable touchscreen, webcam/video-capture and legacy OSS audio emulation. General keyboard, mouse/touchpad, USB storage, graphics, ALSA audio and laptop power management remain enabled.

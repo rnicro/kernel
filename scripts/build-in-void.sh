@@ -161,33 +161,7 @@ PY
     gpg_home=
 fi
 
-# Select the newest stable kernel version with a maintained Void Packages template.
-# Numeric versions only are accepted; release candidates and other pre-releases are skipped.
-if [ -z "$KERNEL_PACKAGE" ]; then
-    KERNEL_PACKAGE="$(python3 - <<'PY'
-import pathlib
-import re
-candidates = []
-for path in pathlib.Path("srcpkgs").glob("linux*"):
-    template = path / "template"
-    if not path.is_dir() or not template.is_file():
-        continue
-    if not re.fullmatch(r"linux[0-9]+[.][0-9]+", path.name):
-        continue
-    text = template.read_text(errors="replace")
-    match = re.search(r"(?m)^version=([0-9]+(?:[.][0-9]+)+)\s*$", text)
-    if match:
-        version = tuple(int(part) for part in match.group(1).split("."))
-        candidates.append((version, path.name))
-if not candidates:
-    raise SystemExit("No stable versioned Linux kernel template found in Void Packages")
-version, package = max(candidates)
-print(package)
-print(f"Selected stable kernel template {package}, version {'.'.join(map(str, version))}", file=__import__('sys').stderr)
-PY
-    )"
-fi
-
+# Linux 7.3 is pinned explicitly above; no floating kernel-series selection.
 pkg="$KERNEL_PACKAGE"
 template="srcpkgs/$pkg/template"
 config="srcpkgs/$pkg/files/x86_64-dotconfig"
@@ -374,9 +348,14 @@ for line in lines:
         value = values[key]
         out.append(f"{key}={value}" if value != "n" else f"# {key} is not set")
         seen.add(key)
-    elif match and ("VIRTIO" in match.group(2) or match.group(2).startswith(("CONFIG_VHOST", "CONFIG_RPMSG", "CONFIG_REMOTEPROC"))):
-        # Disable every inherited VirtIO transport/driver and the remoteproc
-        # subsystem, whose Kconfig entry selects the VIRTIO core.
+    elif match and (
+        "VIRTIO" in match.group(2)
+        or match.group(2).startswith(("CONFIG_VHOST", "CONFIG_RPMSG", "CONFIG_REMOTEPROC"))
+        or (match.group(2).startswith("CONFIG_NET_VENDOR_") and match.group(2) != "CONFIG_NET_VENDOR_REALTEK")
+        or (match.group(2).startswith("CONFIG_WLAN_VENDOR_") and match.group(2) != "CONFIG_WLAN_VENDOR_INTEL")
+    ):
+        # Retain only Realtek wired networking and Intel Wi-Fi vendor families.
+        # The exact target drivers are audited after Kconfig resolves dependencies.
         key = match.group(2)
         out.append(f"# {key} is not set")
         seen.add(key)
@@ -410,7 +389,7 @@ text = text.replace(oldconfig, newconfig)
 auditAnchor = "# Always use our revision to CONFIG_LOCALVERSION to match our pkg version."
 auditCode = "\n".join([
     "\t# Audit the resolved kernel config after oldconfig, before compilation.",
-    '\tfor setting in "CONFIG_EXT4_FS=y" "CONFIG_SWAP=y" "CONFIG_FAT_FS=m" "CONFIG_VFAT_FS=m" "CONFIG_ISO9660_FS=m" "CONFIG_SQUASHFS=m" "CONFIG_USB_STORAGE=m" "CONFIG_USB_UAS=m" "CONFIG_BLK_DEV_SD=m" "CONFIG_DRM_I915=m" "CONFIG_IWLWIFI=m" "CONFIG_R8169=m" "CONFIG_SATA_AHCI=m" "CONFIG_SND_HDA_INTEL=m" "CONFIG_MISC_RTSX_PCI=m" "CONFIG_MMC_REALTEK_PCI=m"; do',
+    '\tfor setting in "CONFIG_EXT4_FS=y" "CONFIG_SWAP=y" "CONFIG_FAT_FS=m" "CONFIG_VFAT_FS=m" "CONFIG_ISO9660_FS=m" "CONFIG_SQUASHFS=m" "CONFIG_USB_STORAGE=m" "CONFIG_USB_UAS=m" "CONFIG_BLK_DEV_SD=m" "CONFIG_DRM_I915=m" "CONFIG_IWLWIFI=m" "CONFIG_R8169=m" "CONFIG_SATA_AHCI=m" "CONFIG_SND_HDA_INTEL=m" "CONFIG_MISC_RTSX_PCI=m" "CONFIG_MMC_REALTEK_PCI=m" "CONFIG_NET_VENDOR_REALTEK=y" "CONFIG_WLAN_VENDOR_INTEL=y"; do',
     '\t\tif ! grep -Fxq "$setting" .config; then',
     '\t\t\techo "Required target kernel option missing after oldconfig: $setting" >&2',
     '\t\t\texit 1',
@@ -419,6 +398,18 @@ auditCode = "\n".join([
     '\tfor symbol in CONFIG_EXT2_FS CONFIG_EXT3_FS CONFIG_MSDOS_FS CONFIG_UDF_FS CONFIG_EXFAT_FS CONFIG_NTFS_FS CONFIG_NTFS3_FS CONFIG_BTRFS_FS CONFIG_XFS_FS CONFIG_F2FS_FS CONFIG_JFS_FS CONFIG_GFS2_FS CONFIG_OCFS2_FS CONFIG_NILFS2_FS CONFIG_REISERFS_FS CONFIG_ZONEFS_FS CONFIG_HFS_FS CONFIG_HFSPLUS_FS CONFIG_HPFS_FS CONFIG_MINIX_FS CONFIG_QNX4FS_FS CONFIG_QNX6FS_FS CONFIG_SYSV_FS CONFIG_UFS_FS CONFIG_ADFS_FS CONFIG_AFFS_FS CONFIG_BEFS_FS CONFIG_BFS_FS CONFIG_EFS_FS CONFIG_CRAMFS CONFIG_EROFS_FS CONFIG_OMFS_FS CONFIG_ROMFS_FS CONFIG_ORANGEFS_FS CONFIG_ECRYPT_FS CONFIG_NFS_FS CONFIG_CIFS CONFIG_SMBFS CONFIG_SMB_SERVER CONFIG_CEPH_FS CONFIG_CODA_FS CONFIG_AFS_FS CONFIG_9P_FS CONFIG_VBOXSF_FS CONFIG_FUSE_FS CONFIG_OVERLAY_FS CONFIG_INPUT_TOUCHSCREEN CONFIG_TOUCHSCREEN_USB_COMPOSITE CONFIG_MEDIA_SUPPORT CONFIG_MEDIA_CAMERA_SUPPORT CONFIG_VIDEO_DEV CONFIG_USB_VIDEO_CLASS CONFIG_USB_GSPCA CONFIG_USB_PWC CONFIG_SND_PCM_OSS CONFIG_SND_SEQUENCER_OSS CONFIG_KVM CONFIG_KVM_INTEL CONFIG_VHOST CONFIG_VHOST_NET CONFIG_VHOST_VSOCK CONFIG_VHOST_SCSI CONFIG_VHOST_VDPA CONFIG_VIRTIO CONFIG_VIRTIO_PCI CONFIG_VIRTIO_MMIO CONFIG_VIRTIO_BLK CONFIG_VIRTIO_NET CONFIG_VIRTIO_GPU CONFIG_VIRTIO_FS CONFIG_VIRTIO_CONSOLE CONFIG_VIRTIO_INPUT CONFIG_RPMSG_VIRTIO CONFIG_REMOTEPROC CONFIG_REMOTEPROC_CDEV CONFIG_XEN CONFIG_XENFS CONFIG_XEN_VIRTIO CONFIG_HYPERV CONFIG_VBOXGUEST CONFIG_VMWARE_BALLOON CONFIG_VMWARE_VMCI CONFIG_VMWARE_PVSCSI CONFIG_DRM_I915_GVT CONFIG_DRM_I915_GVT_KVMGT; do',
     '\t\tif grep -Eq "^${symbol}=[ym]$" .config; then',
     '\t\t\techo "Unexpected enabled kernel option after oldconfig: ${symbol}" >&2',
+    '\t\t\texit 1',
+    '\t\tfi',
+    '\tdone',
+    '\tfor symbol in $(grep -oE "^CONFIG_NET_VENDOR_[A-Z0-9_]+=[ym]$" .config | cut -d= -f1); do',
+    '\t\tif [ "$symbol" != CONFIG_NET_VENDOR_REALTEK ]; then',
+    '\t\t\techo "Unexpected enabled Ethernet vendor after olddefconfig: $symbol" >&2',
+    '\t\t\texit 1',
+    '\t\tfi',
+    '\tdone',
+    '\tfor symbol in $(grep -oE "^CONFIG_WLAN_VENDOR_[A-Z0-9_]+=[ym]$" .config | cut -d= -f1); do',
+    '\t\tif [ "$symbol" != CONFIG_WLAN_VENDOR_INTEL ]; then',
+    '\t\t\techo "Unexpected enabled Wi-Fi vendor after olddefconfig: $symbol" >&2',
     '\t\t\texit 1',
     '\t\tfi',
     '\tdone'
