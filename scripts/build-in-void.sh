@@ -239,6 +239,9 @@ if "# Audit the resolved kernel config after oldconfig, before compilation." not
 path.write_text(text)
 PY
 
+# Correct the distinction between an X.Y package version and X.Y.0 KERNELRELEASE.
+python3 /workspace/scripts/fix-kernel-release-version.py "$template"
+
 # xbps-src must run unprivileged. Keep bootstrap and package compilation on
 # the same isolated user-namespace chroot instead of ethereal, which requires
 # the masterdir to be a symlink to / and is inappropriate for a custom masterdir.
