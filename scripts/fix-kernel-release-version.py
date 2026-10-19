@@ -23,7 +23,7 @@ def patch(path: pathlib.Path) -> None:
         raise SystemExit("Kernel template _kernver assignment changed; refusing unsafe patch")
 
     if CHECK not in text:
-        matches = list(re.finditer(r'(?m)^\tsed -i -e .*CONFIG_LOCALVERSION.*\.config$', text))
+        matches = list(re.finditer(r'(?m)^[ \t]*sed -i -e .*CONFIG_LOCALVERSION.*\.config$', text))
         if len(matches) != 1:
             raise SystemExit("Could not find the package-localversion assignment for the kernelrelease check")
         verification = (
