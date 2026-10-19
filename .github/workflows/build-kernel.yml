@@ -122,7 +122,7 @@ jobs:
         continue-on-error: true
         with:
           path: cache/ccache
-          key: void-kernel-ccache-v1-x86_64-musl-${{ steps.cache-epoch.outputs.week }}
+          key: void-kernel-ccache-v1-x86_64-musl-${{ steps.cache-epoch.outputs.week }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Upload installable kernel packages
         uses: actions/upload-artifact@v7
