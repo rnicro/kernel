@@ -267,6 +267,12 @@ for line in lines:
         value = values[key]
         out.append(f"{key}={value}" if value != "n" else f"# {key} is not set")
         seen.add(key)
+    elif match and match.group(2).startswith(("CONFIG_VIRTIO", "CONFIG_VHOST")):
+        # Disable every inherited VirtIO/VHOST option, including subdrivers
+        # added by Void or the upstream kernel that are not listed explicitly.
+        key = match.group(2)
+        out.append(f"# {key} is not set")
+        seen.add(key)
     else:
         out.append(line)
 for key, value in values.items():
