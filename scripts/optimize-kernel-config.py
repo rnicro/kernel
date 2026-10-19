@@ -2,6 +2,40 @@ import pathlib
 import re
 import sys
 
+# Newer kernel Kconfig files may add vendor menus absent from the older
+# baseline config. Normalize the resolved config, then run olddefconfig again.
+RESOLVED_DISABLE = {
+    "CONFIG_ETHERNET",
+    "CONFIG_R8169",
+    "CONFIG_SCSI_BNX2_ISCSI",
+    "CONFIG_SCSI_BNX2X_FCOE",
+    "CONFIG_SCSI_CXGB3_ISCSI",
+    "CONFIG_SCSI_CXGB4_ISCSI",
+}
+
+def normalize_resolved(path: pathlib.Path) -> None:
+    lines = path.read_text().splitlines()
+    out = []
+    for line in lines:
+        match = re.match(r"^(?:# )?(CONFIG_[A-Z0-9_]+)(?:=[ym]| is not set)$", line)
+        if match:
+            symbol = match.group(1)
+            dynamic_vendor = symbol.startswith("CONFIG_NET_VENDOR_") or (
+                symbol.startswith("CONFIG_WLAN_VENDOR_")
+                and symbol != "CONFIG_WLAN_VENDOR_INTEL"
+            )
+            if symbol in RESOLVED_DISABLE or dynamic_vendor:
+                out.append(f"# {symbol} is not set")
+                continue
+        out.append(line)
+    path.write_text("\n".join(out) + "\n")
+
+if len(sys.argv) == 3 and sys.argv[1] == "--normalize-resolved":
+    normalize_resolved(pathlib.Path(sys.argv[2]))
+    raise SystemExit(0)
+if len(sys.argv) != 2:
+    raise SystemExit("usage: optimize-kernel-config.py [--normalize-resolved] CONFIG")
+
 path = pathlib.Path(sys.argv[1])
 lines = path.read_text().splitlines()
 values = {

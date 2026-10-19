@@ -205,6 +205,9 @@ text = text.replace(oldconfig, newconfig)
 auditAnchor = "# Always use our revision to CONFIG_LOCALVERSION to match our pkg version."
 auditCode = "\n".join([
     "\t# Audit the resolved kernel config after oldconfig, before compilation.",
+    "\t# Normalize vendor menus newly introduced since the baseline config.",
+    '\tpython3 /workspace/scripts/optimize-kernel-config.py --normalize-resolved .config',
+    '\tmake ${makejobs} ARCH=$arch ${_cross} olddefconfig',
     '\tfor setting in "CONFIG_EXT4_FS=y" "CONFIG_SWAP=y" "CONFIG_FAT_FS=m" "CONFIG_VFAT_FS=m" "CONFIG_ISO9660_FS=m" "CONFIG_SQUASHFS=m" "CONFIG_USB_STORAGE=m" "CONFIG_USB_UAS=m" "CONFIG_BLK_DEV_SD=m" "CONFIG_DRM_I915=m" "CONFIG_IWLWIFI=m" "CONFIG_SATA_AHCI=m" "CONFIG_SND_HDA_INTEL=m" "CONFIG_MISC_RTSX_PCI=m" "CONFIG_MMC_REALTEK_PCI=m" "CONFIG_WLAN_VENDOR_INTEL=y"; do',
     '\t\tif ! grep -Fxq "$setting" .config; then',
     '\t\t\techo "Required target kernel option missing after oldconfig: $setting" >&2',

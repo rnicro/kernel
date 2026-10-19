@@ -55,10 +55,37 @@ def main() -> None:
             expected = f"# {symbol} is not set"
             if lines != [expected]:
                 raise SystemExit(f"{symbol} not disabled exactly once: {lines}")
+        # Simulate Kconfig enabling old selectors and introducing new defaults
+        # that did not exist in the baseline fragment.
+        lines = first.splitlines()
+        reenabled = set(DISABLED)
+        out = []
+        for line in lines:
+            match = re.match(r"^# (CONFIG_[A-Z0-9_]+) is not set$", line)
+            if match and match.group(1) in reenabled:
+                symbol = match.group(1)
+                out.append(f"{symbol}={'m' if symbol.startswith('CONFIG_SCSI_') else 'y'}")
+            else:
+                out.append(line)
+        out.extend(("CONFIG_WLAN_VENDOR_MORSEMICRO=y", "CONFIG_NET_VENDOR_NEWCHIP=y"))
+        config.write_text("\n".join(out) + "\n")
+        subprocess.run([sys.executable, str(TRANSFORMER),
+                        "--normalize-resolved", str(config)], check=True)
+        normalized = config.read_text()
+        subprocess.run([sys.executable, str(TRANSFORMER),
+                        "--normalize-resolved", str(config)], check=True)
+        if normalized != config.read_text():
+            raise SystemExit("Resolved-config normalization is not idempotent")
+        for symbol in DISABLED + ("CONFIG_WLAN_VENDOR_MORSEMICRO", "CONFIG_NET_VENDOR_NEWCHIP"):
+            rows = [line for line in normalized.splitlines()
+                    if re.match(rf"^(?:# )?{re.escape(symbol)}(?:=| is not set$)", line)]
+            if rows != [f"# {symbol} is not set"]:
+                raise SystemExit(f"Resolved {symbol} not disabled exactly once: {rows}")
+
         for setting in ("CONFIG_WLAN_VENDOR_INTEL=y", "CONFIG_IWLWIFI=m",
                         "CONFIG_DRM_I915=m", "CONFIG_EXT4_FS=y",
                         "CONFIG_MISC_RTSX_PCI=m"):
-            if setting not in first.splitlines():
+            if setting not in normalized.splitlines():
                 raise SystemExit(f"Required laptop setting was not preserved: {setting}")
     print("kernel config profile tests passed")
 
