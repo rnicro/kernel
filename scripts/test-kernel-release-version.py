@@ -24,12 +24,11 @@ def expected_release(template: str, version: str, revision: str) -> str:
     match = re.search(r'case "\$version" in\n.*?\n\tesac', template, re.S)
     if not match:
         raise SystemExit("Kernel version normalization case was not installed")
-    script = (
-        'version="$1"; revision="$2"; '
-        '_kernver="${version/rc/0-rc}_${revision}";\n'
-        + match.group(0)
-        + '\nprintf "%s" "$_kernver"'
-    )
+    script = "\n".join((
+        'version="$1"; revision="$2"; _kernver="${version/rc/0-rc}_${revision}";',
+        match.group(0),
+        'printf "%s" "$_kernver"',
+    ))
     result = subprocess.run(["bash", "-c", script, "test", version, revision],
                             check=True, capture_output=True, text=True)
     return result.stdout
