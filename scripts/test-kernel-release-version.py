@@ -16,7 +16,7 @@ revision=1
 _kernver="${version/rc/0-rc}_${revision}"
 do_configure() {
     make ${makejobs} ARCH=$arch ${_cross} oldconfig
-    sed -i 's/^CONFIG_LOCALVERSION=.*/CONFIG_LOCALVERSION="_${revision}"/' .config
+    sed -i -e 's/^CONFIG_LOCALVERSION=.*/CONFIG_LOCALVERSION="_${revision}"/' .config
 }
 '''
 
