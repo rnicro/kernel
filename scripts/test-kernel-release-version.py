@@ -21,7 +21,7 @@ do_configure() {
 '''
 
 def expected_release(template: str, version: str, revision: str) -> str:
-    match = re.search(r'case "\$version" in\n.*?\n\tesac', template, re.S)
+    match = re.search(r'case "\$version" in\n.*?\n\s*esac', template, re.S)
     if not match:
         raise SystemExit("Kernel version normalization case was not installed")
     script = "\n".join((
