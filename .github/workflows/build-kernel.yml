@@ -34,6 +34,8 @@ jobs:
           bash -n scripts/publish-release.sh scripts/test-publish-release.sh
           python3 -m py_compile scripts/optimize-kernel-config.py scripts/test-kernel-config-profile.py
           python3 scripts/test-kernel-config-profile.py
+          python3 -m py_compile scripts/ensure-void-kernel-subpackages.py scripts/test-void-kernel-subpackages.py
+          python3 scripts/test-void-kernel-subpackages.py
           python3 -m py_compile scripts/fix-kernel-release-version.py scripts/test-kernel-release-version.py
           python3 scripts/test-kernel-release-version.py
           grep -Fq 'cp /workspace/scripts/optimize-kernel-config.py' scripts/build-in-void.sh

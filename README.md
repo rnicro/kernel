@@ -29,7 +29,7 @@ A device-specific Linux kernel package for **Void Linux x86_64-musl**, built wit
 ## Build and releases
 
 - Pushes to `main` changing `.github/workflows/build-kernel.yml` or `scripts/**` trigger a build. Manual runs are available in **Actions → Build optimized Void Linux kernel**.
-- Uses Void’s maintained `linux7.3` template when available. Until then, the build derives a local template from `linux7.2`, fetches the official Linux 7.3 archive, verifies its detached PGP signature against Greg Kroah-Hartman’s pinned fingerprint, and derives the XBPS checksum only after verification.
+- Uses Void’s maintained `linux7.3` template when available. Until then, the build derives a local template from `linux7.2`, fetches the official Linux 7.3 archive, verifies its detached PGP signature against Greg Kroah-Hartman’s pinned fingerprint, and derives the XBPS checksum only after verification. The build also recreates and validates Void’s `-headers` and `-dbg` template symlinks so XBPS can discover subpackages when the fallback template is used.
 - Disable Ethernet-dependent Broadcom/Chelsio iSCSI/FCoE offload options that select `CONFIG_ETHERNET`; otherwise Kconfig can re-enable the Ethernet driver menu after the initial config is edited.
 - Build caching uses Void `XBPS_CCACHE` with a persistent, compressed compiler cache capped at 2 GiB, alongside source and binary-package caches.
 - The build validates that Void package module paths match Kbuild `kernelrelease`; X.Y mainline tarballs use X.Y.0 for installed modules while the XBPS package version remains X.Y.

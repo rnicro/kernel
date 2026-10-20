@@ -166,6 +166,11 @@ PY
     gpg_home=
 fi
 
+# XBPS resolves each declared subpackage through srcpkgs/<subpackage>/template.
+# Void's maintained kernel template provides these paths as symlinks; validate
+# and recreate that layout when using our generated fallback template.
+python3 /workspace/scripts/ensure-void-kernel-subpackages.py "$PWD" "$KERNEL_PACKAGE"
+
 # Linux 7.3 is pinned explicitly above; no floating kernel-series selection.
 pkg="$KERNEL_PACKAGE"
 template="srcpkgs/$pkg/template"
